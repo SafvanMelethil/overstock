@@ -1,0 +1,1797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Overstock Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#f5f5f4; --card:#ffffff; --ink:#0a0a0a; --ink2:#262626; --muted:#737373; --faint:#a3a3a3;
+  --line:#e7e5e4; --line2:#d6d3d1; --soft:#fafaf9;
+  --ok:#15803d; --okbg:#ecfdf3; --okline:#bbf7d0;
+  --warn:#b45309; --warnbg:#fffbeb; --warnline:#fde68a;
+  --bad:#b91c1c; --badbg:#fef2f2; --badline:#fecaca;
+  --r:14px; --r-sm:10px;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.05);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+.row{display:flex;align-items:center;gap:10px}
+.grow{flex:1}
+
+/* ---------- Buttons & inputs ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:var(--r-sm);border:1px solid var(--ink);background:var(--ink);color:#fff;font-weight:600;letter-spacing:.01em;transition:transform .05s,opacity .15s,background .15s;white-space:nowrap}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:#fff;color:var(--ink);border-color:var(--line2)}
+.btn.ghost:hover{border-color:var(--ink)}
+.btn.danger{background:var(--bad);border-color:var(--bad)}
+.btn.ghost.danger{background:#fff;color:var(--bad);border-color:var(--badline)}
+.btn.sm{height:34px;padding:0 12px;font-size:13px;border-radius:8px}
+.btn.xs{height:28px;padding:0 10px;font-size:12px;border-radius:7px}
+.btn.block{width:100%}
+.btn.lg{height:54px;font-size:16px}
+.iconbtn{width:40px;height:40px;border-radius:10px;border:1px solid var(--line2);background:#fff;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.iconbtn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.input{width:100%;height:46px;padding:0 14px;border:1px solid var(--line2);border-radius:var(--r-sm);background:#fff;outline:none;transition:border .15s,box-shadow .15s}
+.input:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(10,10,10,.08)}
+select.input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,#555 50%),linear-gradient(135deg,#555 50%,transparent 50%);background-position:calc(100% - 18px) 20px,calc(100% - 13px) 20px;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+label.lbl{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------- Login ---------- */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;background:radial-gradient(1200px 500px at 50% -10%,#e7e5e4,transparent),var(--bg)}
+.login-card{width:100%;max-width:400px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:34px 28px;box-shadow:var(--shadow)}
+.brandmark{width:52px;height:52px;border-radius:14px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;letter-spacing:-.02em;font-size:18px}
+.login-card h1{font-size:24px;letter-spacing:-.02em;margin:18px 0 4px}
+.login-card p.sub{margin:0 0 26px;color:var(--muted)}
+.field{margin-bottom:16px}
+.err{color:var(--bad);font-size:13px;min-height:18px;margin:4px 0 10px}
+.login-foot{margin-top:22px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+
+/* ---------- Top bar ---------- */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1280px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em}
+.brand .brandmark{width:34px;height:34px;border-radius:9px;font-size:12px}
+.brand small{display:block;font-weight:500;color:var(--muted);font-size:11.5px;letter-spacing:0}
+.pill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;border:1px solid var(--line2);font-size:12.5px;font-weight:600;background:#fff;white-space:nowrap}
+.pill.dark{background:var(--ink);color:#fff;border-color:var(--ink)}
+.live{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(21,128,61,.5);animation:pulse 2s infinite}
+.live.off{background:var(--bad);animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(21,128,61,.45)}70%{box-shadow:0 0 0 7px rgba(21,128,61,0)}100%{box-shadow:0 0 0 0 rgba(21,128,61,0)}}
+.userchip{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--soft);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+
+/* ---------- Tabs ---------- */
+.tabs{max-width:1280px;margin:0 auto;padding:0 16px;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{border:0;background:none;padding:12px 12px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;display:flex;align-items:center;gap:7px;font-size:14px}
+.tab.on{color:var(--ink);border-bottom-color:var(--ink)}
+.tab .count{font-size:11px;background:var(--soft);border:1px solid var(--line);padding:0 6px;border-radius:999px;color:var(--ink2)}
+
+main{max-width:1280px;margin:0 auto;padding:16px 16px 110px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.pad{padding:18px}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:22px 2px 10px}
+
+/* ---------- User: stats strip ---------- */
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.strip .s{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.strip .s b{display:block;font-size:20px;letter-spacing:-.02em}
+.strip .s span{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+
+/* ---------- Scan bar ---------- */
+.scanbar{padding:14px}
+.scanwrap{position:relative;display:flex;gap:8px}
+.scaninput{height:58px;font-size:18px;font-weight:600;padding-left:50px;letter-spacing:.01em}
+.scanicon{position:absolute;left:16px;top:19px;color:var(--muted)}
+.scanhint{display:flex;justify-content:space-between;gap:10px;margin-top:10px;font-size:12.5px;color:var(--muted)}
+.scanhint .ready{display:inline-flex;align-items:center;gap:6px;color:var(--ok);font-weight:600}
+.scanhint .ready.idle{color:var(--muted)}
+.suggest{position:absolute;left:0;right:0;top:64px;z-index:20;background:#fff;border:1px solid var(--line2);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.12);max-height:360px;overflow:auto}
+.sug{padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:12px;align-items:center}
+.sug:last-child{border-bottom:0}
+.sug:hover,.sug.on{background:var(--soft)}
+#camBox{margin-top:12px;border-radius:12px;overflow:hidden;background:#000;position:relative}
+#camReader{width:100%}
+#camReader video{width:100%!important;display:block}
+.camclose{position:absolute;top:10px;right:10px;z-index:5}
+
+/* ---------- Material card ---------- */
+.matcard{margin-top:14px;overflow:hidden}
+.mat-head{padding:20px 20px 14px}
+.mat-no{font-family:var(--mono);font-size:12.5px;color:var(--muted);letter-spacing:.02em;display:flex;gap:12px;flex-wrap:wrap}
+.mat-desc{font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.25;margin-top:6px}
+.two{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.two > div{padding:16px 20px}
+.two > div + div{border-left:1px solid var(--line)}
+.two label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.two b{display:block;font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-top:4px}
+.two b small{font-size:15px;font-weight:600;color:var(--muted);letter-spacing:0;margin-left:4px}
+.prog{padding:14px 20px}
+.bar{height:8px;border-radius:99px;background:#f0efed;overflow:hidden}
+.bar > i{display:block;height:100%;background:var(--ink);border-radius:99px;transition:width .4s}
+.bar.ok > i{background:var(--ok)}
+.bar.warn > i{background:#d97706}
+.prog .meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:8px}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid var(--line2);background:#fff;color:var(--ink2);white-space:nowrap}
+.status::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--faint)}
+.status.full{background:var(--okbg);border-color:var(--okline);color:var(--ok)}
+.status.full::before{background:var(--ok)}
+.status.part{background:var(--warnbg);border-color:var(--warnline);color:var(--warn)}
+.status.part::before{background:#d97706}
+.banner{margin:0 20px 14px;padding:12px 14px;border-radius:12px;font-size:14px;display:flex;gap:10px;align-items:flex-start}
+.banner.warn{background:var(--warnbg);border:1px solid var(--warnline);color:#78350f}
+.banner.ok{background:var(--okbg);border:1px solid var(--okline);color:#14532d}
+.banner.bad{background:var(--badbg);border:1px solid var(--badline);color:#7f1d1d}
+.takers{padding:0 20px 14px}
+.taker{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px dashed var(--line);font-size:13.5px}
+.taker:first-child{border-top:0}
+.pickform{padding:16px 20px 20px;background:var(--soft);border-top:1px solid var(--line)}
+.qtyrow{display:flex;gap:8px;align-items:stretch}
+.qtybtn{width:54px;height:54px;border-radius:12px;border:1px solid var(--line2);background:#fff;font-size:24px;font-weight:600}
+.qtyinput{height:54px;text-align:center;font-size:24px;font-weight:800;flex:1;min-width:0}
+.quick{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.empty{padding:46px 20px;text-align:center;color:var(--muted)}
+.empty .big{width:64px;height:64px;border-radius:18px;border:1px dashed var(--line2);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--ink)}
+.empty h3{color:var(--ink);margin:0 0 6px;font-size:17px}
+
+/* ---------- Lists ---------- */
+.list{display:flex;flex-direction:column}
+.li{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line);cursor:pointer;background:#fff}
+.li:first-child{border-top:0}
+.li:hover{background:var(--soft)}
+.li .t{font-weight:600;line-height:1.3}
+.li .s{font-size:12px;color:var(--muted);font-family:var(--mono);margin-bottom:2px}
+.li .r{text-align:right;flex:none}
+.li .r b{font-size:18px;display:block;letter-spacing:-.02em}
+.li .r span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+.chip{height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line2);background:#fff;font-weight:600;font-size:13px}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:10px;padding:3px;background:#fff;gap:2px}
+.seg button{border:0;background:none;padding:6px 14px;border-radius:7px;font-weight:600;font-size:13px;color:var(--muted)}
+.seg button.on{background:var(--ink);color:#fff}
+
+/* ---------- Bottom nav (mobile users) ---------- */
+.bnav{position:fixed;bottom:0;left:0;right:0;z-index:40;background:#fff;border-top:1px solid var(--line);display:none;padding-bottom:env(safe-area-inset-bottom)}
+.bnav button{flex:1;border:0;background:none;padding:9px 0 8px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:600;color:var(--muted)}
+.bnav button.on{color:var(--ink)}
+.bnav svg.i{width:22px;height:22px}
+
+/* ---------- Admin ---------- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.kpi span{display:block;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.kpi b{display:block;font-size:30px;font-weight:800;letter-spacing:-.03em;margin-top:4px}
+.kpi small{color:var(--muted);font-size:12.5px}
+.grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar .input{height:40px;width:auto;min-width:0}
+.toolbar .search{flex:1;min-width:200px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:#fff}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{position:sticky;top:0;background:var(--soft);text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--soft)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+td.desc{min-width:240px}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;font-size:13px;color:var(--muted)}
+.drop{border:2px dashed var(--line2);border-radius:16px;padding:40px 20px;text-align:center;background:#fff;transition:border .15s,background .15s;cursor:pointer}
+.drop.over{border-color:var(--ink);background:var(--soft)}
+.feed .fi{display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:13.5px}
+.feed .fi:first-child{border-top:0}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;font-size:14px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:600}
+.exp{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.exp .card{padding:18px;display:flex;flex-direction:column;gap:10px}
+.exp h4{margin:0;font-size:15px}
+.exp p{margin:0;color:var(--muted);font-size:13px;flex:1}
+
+/* ---------- Modal ---------- */
+.overlay{position:fixed;inset:0;background:rgba(10,10,10,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;animation:fade .15s}
+.modal{background:#fff;border-radius:18px;width:100%;max-width:460px;max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.25);animation:pop .18s}
+.modal.wide{max-width:720px}
+.modal-h{padding:20px 22px 0;display:flex;gap:14px;align-items:flex-start}
+.modal-h h3{margin:0;font-size:18px;letter-spacing:-.01em}
+.modal-b{padding:14px 22px}
+.modal-f{padding:6px 22px 22px;display:flex;gap:8px;justify-content:flex-end}
+.micon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;background:var(--soft);border:1px solid var(--line)}
+.micon.warn{background:var(--warnbg);border-color:var(--warnline);color:var(--warn)}
+.micon.bad{background:var(--badbg);border-color:var(--badline);color:var(--bad)}
+.micon.ok{background:var(--okbg);border-color:var(--okline);color:var(--ok)}
+@keyframes fade{from{opacity:0}}
+@keyframes pop{from{transform:translateY(8px) scale(.98);opacity:0}}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.formgrid .full{grid-column:1/-1}
+
+/* ---------- Toast ---------- */
+#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:calc(100% - 32px);max-width:440px}
+.toast{background:var(--ink);color:#fff;padding:12px 16px;border-radius:12px;font-weight:500;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.25);display:flex;gap:10px;align-items:center;animation:pop .2s;width:100%}
+.toast.ok{background:#14532d}
+.toast.bad{background:#7f1d1d}
+.toast.warn{background:#78350f}
+
+/* ---------- Loading ---------- */
+#loader{position:fixed;inset:0;background:rgba(255,255,255,.75);z-index:150;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-weight:600}
+.spin{width:30px;height:30px;border-radius:50%;border:3px solid var(--line2);border-top-color:var(--ink);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ---------- Responsive ---------- */
+@media (max-width:900px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .grid2{grid-template-columns:1fr}
+  .exp{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  html,body{font-size:14.5px}
+  .bnav.show{display:flex}
+  .utabs{display:none}
+  .topbar-in{padding:8px 12px;gap:8px}
+  .brand small{display:none}
+  .brand > div:last-child{display:none}
+  #liveTxt{display:none}
+  .scaninput{font-size:16px;padding-left:44px}
+  .scanicon{left:13px}
+  .userchip .uname{display:none}
+  .strip{grid-template-columns:repeat(4,1fr);gap:6px}
+  .strip .s{padding:8px}
+  .strip .s b{font-size:17px}
+  .strip .s span{font-size:10px}
+  .mat-desc{font-size:19px}
+  .two b{font-size:34px}
+  .two > div{padding:14px 16px}
+  .mat-head,.prog{padding-left:16px;padding-right:16px}
+  .banner{margin-left:16px;margin-right:16px}
+  .takers,.pickform{padding-left:16px;padding-right:16px}
+  .kpi b{font-size:24px}
+  .formgrid{grid-template-columns:1fr}
+  main{padding:12px 12px 100px}
+  .kv{grid-template-columns:120px 1fr}
+}
+
+/* ---------- v3: tasks & categories ---------- */
+.cattag{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.04em;border:1px solid var(--line2);background:#fff;color:var(--ink2);font-family:var(--mono)}
+.cattag.MED{background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a}
+.cattag.COS{background:#fdf2f8;border-color:#fbcfe8;color:#831843}
+.cattag.MIL{background:#f0fdfa;border-color:#99f6e4;color:#134e4a}
+.cattag.DIP{background:#faf5ff;border-color:#e9d5ff;color:#581c87}
+.tasktag{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.04em;background:var(--ink);color:#fff}
+.tasktag.Backup{background:#fff;color:var(--ink);border:1px solid var(--ink)}
+.catbadge{display:inline-flex;align-items:center;height:30px;padding:0 14px;border-radius:999px;font-weight:700;font-size:13px;border:1px solid var(--line2);background:#fff}
+.catbadge.MED{background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a}.catbadge.COS{background:#fdf2f8;border-color:#fbcfe8;color:#831843}
+.catbadge.MIL{background:#f0fdfa;border-color:#99f6e4;color:#134e4a}.catbadge.DIP{background:#faf5ff;border-color:#e9d5ff;color:#581c87}
+#tbTask{background:var(--ink);color:#fff;border-color:var(--ink);cursor:pointer}
+#tbTask.backup{background:#fff;color:var(--ink);border-color:var(--ink)}
+.taskcard{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:12px;box-shadow:var(--shadow);transition:border .15s,transform .05s}
+.taskcard:hover{border-color:var(--ink)}
+.taskcard:active{transform:scale(.99)}
+.taskcard.main{border:2px solid var(--ink)}
+.taskcard.cur{box-shadow:0 0 0 3px rgba(10,10,10,.12)}
+.tasknum{width:44px;height:44px;border-radius:12px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex:none}
+.taskcard:not(.main) .tasknum{background:#fff;color:var(--ink);border:2px solid var(--ink)}
+.tk-title{font-size:19px;font-weight:800;letter-spacing:-.02em}
+.tk-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0 12px}
+.tk-stats b{display:block;font-size:24px;letter-spacing:-.03em}
+.tk-stats span{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.grid2eq{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.taskpanel{overflow:hidden}
+.taskpanel.Core{border:2px solid var(--ink)}
+.tp-head{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 18px 12px}
+.tp-label{font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--muted)}
+.tp-title{font-size:24px;font-weight:800;letter-spacing:-.03em}
+.tp-pct{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.tp-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 10px;padding:16px 18px}
+.tp-kpis span{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.tp-kpis b{display:block;font-size:20px;letter-spacing:-.02em}
+.totalcard{margin-top:14px;padding:18px;background:var(--ink);color:#fff;border-color:var(--ink)}
+.totalcard .tp-label,.totalcard .tp-kpis span{color:#a3a3a3}
+.totalcard .bar{background:#3f3f46}.totalcard .bar > i{background:#fff}
+.totalcard .tp-kpis b[style]{color:#fff!important}
+.tasktabs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.tasktab{text-align:left;background:#fff;border:1px solid var(--line2);border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;gap:2px}
+.tasktab b{font-size:20px;letter-spacing:-.02em}
+.tasktab.on{border:2px solid var(--ink);box-shadow:var(--shadow)}
+.mat-no .cattag,.mat-no .tasktag{font-size:10.5px}
+@media (max-width:900px){ .grid2eq{grid-template-columns:1fr} }
+@media (max-width:640px){ .tp-kpis{grid-template-columns:repeat(2,1fr)} .tasktabs{grid-template-columns:1fr 1fr} .tasktab b{font-size:17px} .tk-stats b{font-size:20px} #tbPharm{display:none} }
+</style>
+</head>
+<body>
+
+<!-- ======================= LOGIN ======================= -->
+<div id="login" class="hidden">
+  <form class="login-card" id="loginForm" autocomplete="on" onsubmit="return false">
+    <div class="row"><div class="brandmark">OS</div><span class="pill dark" id="lgPharm" style="margin-left:auto">…</span></div>
+    <h1>Overstock Finder</h1>
+    <p class="sub">Sign in to start picking overstock.</p>
+    <div class="field">
+      <label class="lbl" for="lgUser">User ID</label>
+      <input class="input" id="lgUser" placeholder="COS-001" autocapitalize="characters" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label class="lbl" for="lgPass">Password</label>
+      <input class="input" id="lgPass" type="password" placeholder="••••" autocomplete="current-password" inputmode="numeric" required>
+    </div>
+    <div class="err" id="lgErr"></div>
+    <button class="btn block lg" id="lgBtn" type="submit">Sign in</button>
+    <div class="login-foot">Pickers: <b>MED</b>-001…004 · <b>COS</b>-001…004 · <b>MIL</b>-001…004 · <b>DIP</b>-001…004<br>Admin: <b id="lgAdmin">ADMIN</b></div>
+  </form>
+</div>
+
+<!-- ======================= APP SHELL ======================= -->
+<div id="shell" class="hidden">
+  <header class="topbar">
+    <div class="topbar-in">
+      <div class="brand"><div class="brandmark">OS</div><div>Overstock Finder<small id="tbSub">—</small></div></div>
+      <span class="pill dark" id="tbPharm">—</span>
+      <span class="pill hidden" id="tbTask" title="Change task"></span>
+      <span class="pill" title="Live sync"><span class="live" id="liveDot"></span><span id="liveTxt">Live</span></span>
+      <div class="grow"></div>
+      <div class="userchip"><div class="avatar" id="tbAvatar">OS</div><span class="uname" id="tbUser">—</span></div>
+      <button class="iconbtn" id="btnLogout" title="Sign out"><svg class="i" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
+    </div>
+    <nav class="tabs" id="tabs"></nav>
+  </header>
+  <main id="main"></main>
+  <nav class="bnav" id="bnav"></nav>
+</div>
+
+<div id="toasts"></div>
+<div id="loader" class="hidden"><div class="spin"></div><div id="loaderTxt">Loading…</div></div>
+
+<script>
+/* =====================================================================
+   OVERSTOCK FINDER v3 — client  (one app per pharmacy · Core & Backup tasks)
+   ===================================================================== */
+const POLL_MS = 3000;
+const PAGE = 50;
+const ST = { NONE:'Not Taken', PART:'Partially Taken', FULL:'Fully Taken' };
+const TASKS = ['Core','Backup'];
+const TASK_LABEL = { Core:'Task 1 · Core', Backup:'Task 2 · Backup' };
+const CATS = ['MED','COS','MIL','DIP'];
+const CAT_NAME = { MED:'Medicine', COS:'Cosmetics', MIL:'Milk', DIP:'Diapers', OTH:'Other', ALL:'All categories' };
+const CAT_DIGIT = { '1':'MED', '2':'COS', '3':'MIL', '4':'DIP' };
+const catOf = m => CAT_DIGIT[String(m||'').trim().replace(/^0+/,'').charAt(0)] || 'OTH';
+
+/* ↓↓↓ For the GitHub version: the Apps Script web-app link of THIS pharmacy ↓↓↓ */
+const API_URL = window.OSF_API_URL || 'https://script.google.com/macros/s/AKfycbyW4_MpGjC8m_RkFShEi1Esr9JVJsGvURGX_qJLvH2NxTVz9bwT8rskGZnnu3ABM1JqTA/exec';
+const APP_KEY = window.OSF_APP_KEY || ((location.pathname.match(/p\d{3,4}/i) || ['app'])[0].toLowerCase());
+
+const S = {
+  token:null, user:null, role:null, cat:null, name:null,
+  task:null, data:null, mv:null, pv:null,
+  mats:[], picks:[], byKey:new Map(), byCode:new Map(), byMat:new Map(),
+  view:'scan', current:null, lastScan:'', searchQ:'', searchF:'open', searchN:60,
+  histSeg:'picks', myScans:[], polling:false, pollTimer:null, online:true,
+  adm:{ view:'dash', mt:'Core', mq:'', mf:'all', mc:'all', mu:'all', mp:0, pt:'all', pc:'all', pq:'', pu:'all', pp:0, sq:'', su:'all', sp:0, scans:null, upload:null, userRows:null }
+};
+
+/* ---------------- Utilities ---------------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s ?? '').trim().replace(/\s+/g,'').replace(/^0+/,'').toUpperCase();
+const fmtN = n => Number(n||0).toLocaleString('en-US');
+const pad2 = n => String(n).padStart(2,'0');
+function fmtTime(ms){ if(!ms) return '—'; const d=new Date(ms); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
+function fmtDT(ms){ if(!ms) return '—'; const d=new Date(ms); return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' '+fmtTime(ms); }
+function ago(ms){ if(!ms) return '—'; const s=Math.round((Date.now()-ms)/1000); if(s<45) return 'just now'; if(s<3600) return Math.round(s/60)+' min ago'; if(s<86400) return Math.round(s/3600)+' h ago'; return fmtDT(ms); }
+const isToday = ms => { const d=new Date(ms), n=new Date(); return d.toDateString()===n.toDateString(); };
+const stClass = st => st===ST.FULL?'full':st===ST.PART?'part':'';
+const stShort = st => st===ST.FULL?'Fully taken':st===ST.PART?'Partially taken':'Not taken';
+
+const store = {
+  k: x => 'osf3_' + APP_KEY + '_' + x,
+  get(x){ try{ return JSON.parse(localStorage.getItem(this.k(x))); }catch(e){ return null; } },
+  set(x,v){ try{ localStorage.setItem(this.k(x), JSON.stringify(v)); }catch(e){} },
+  del(x){ try{ localStorage.removeItem(this.k(x)); }catch(e){} }
+};
+
+const I = {
+  scan:'<svg class="i" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10 8v8M13 8v8M17 8v8"/></svg>',
+  search:'<svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
+  hist:'<svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>',
+  cam:'<svg class="i" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  kb:'<svg class="i" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>',
+  warn:'<svg class="i" viewBox="0 0 24 24"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  ok:'<svg class="i" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>',
+  x:'<svg class="i" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+  info:'<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+  edit:'<svg class="i" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  dash:'<svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>',
+  box:'<svg class="i" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg>',
+  list:'<svg class="i" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+  up:'<svg class="i" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>',
+  down:'<svg class="i" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>',
+  gear:'<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  eye:'<svg class="i" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+  user:'<svg class="i" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>',
+  plus:'<svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  trash:'<svg class="i" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>',
+  refresh:'<svg class="i" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg>'
+};
+
+
+/* ---------------- Server bridge ----------------
+   1) Opened from the Apps Script link → google.script.run
+   2) Opened from GitHub Pages         → POST to API_URL
+   ------------------------------------------------- */
+const IN_GAS = !!(window.google && google.script && google.script.run);
+function apiFail(msg){
+  if (String(msg).includes('AUTH_EXPIRED')) { toast('Session expired. Please sign in again.','warn'); logout(true); }
+  return new Error(String(msg).replace(/^Error:\s*/,'').replace(/^Exception:\s*/,''));
+}
+function api(fn, ...args){
+  if (IN_GAS){
+    return new Promise((resolve, reject) => {
+      google.script.run.withSuccessHandler(resolve)
+        .withFailureHandler(err => reject(apiFail((err && err.message) || err)))[fn](...args);
+    });
+  }
+  if (API_URL.indexOf('%%')===0) return Promise.reject(new Error('This page is not connected yet: the Apps Script link is missing.'));
+  const call = () => fetch(API_URL, { method:'POST', redirect:'follow', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify({ fn, args }) })
+    .then(r => { if (!r.ok) throw new Error('NET'); return r.json(); });
+  const readOnly = /^(get|login|appInfo|adminGet)/.test(fn);
+  return call()
+    .catch(e => readOnly ? new Promise(r => setTimeout(r, 800)).then(call) : Promise.reject(e))
+    .catch(() => { throw new Error('No connection to server. Check internet and try again.'); })
+    .then(j => { if (!j.ok) throw apiFail(j.error); return j.result; });
+}
+function loading(on, txt){ $('#loader').classList.toggle('hidden', !on); $('#loaderTxt').textContent = txt || 'Loading…'; }
+
+/* ---------------- Feedback (sound / vibrate / toast) ---------------- */
+let actx = null;
+function tone(freq, dur, when=0, type='sine', vol=.08){
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq; g.gain.value = vol;
+    o.connect(g); g.connect(actx.destination);
+    const t = actx.currentTime + when; o.start(t); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur); o.stop(t+dur+.02);
+  }catch(e){}
+}
+const sfx = {
+  scan(){ tone(1320,.07); },
+  ok(){ tone(880,.09); tone(1320,.12,.09); try{navigator.vibrate&&navigator.vibrate(40);}catch(e){} },
+  warn(){ tone(520,.16,0,'triangle',.12); tone(520,.16,.2,'triangle',.12); try{navigator.vibrate&&navigator.vibrate([80,60,80]);}catch(e){} },
+  bad(){ tone(220,.25,0,'square',.05); try{navigator.vibrate&&navigator.vibrate(200);}catch(e){} }
+};
+function toast(msg, kind='', ms=2600){
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  el.innerHTML = (kind==='ok'?I.ok:kind==='bad'?I.x:kind==='warn'?I.warn:I.info) + '<div>' + msg + '</div>';
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.style.transition='opacity .3s'; el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, ms);
+}
+
+/* ---------------- Modals ---------------- */
+function modalOpen(){ return !!document.querySelector('.overlay'); }
+function openModal(html, opts={}){
+  closeModal();
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = '<div class="modal '+(opts.wide?'wide':'')+'">'+html+'</div>';
+  ov.addEventListener('mousedown', e => { if(e.target===ov && !opts.sticky) closeModal(); });
+  document.body.appendChild(ov);
+  const f = ov.querySelector('[autofocus]') || ov.querySelector('.modal-f .btn:last-child');
+  if (f) setTimeout(() => { f.focus(); if (f.select) f.select(); }, 30);
+  return ov;
+}
+function closeModal(){ document.querySelectorAll('.overlay').forEach(o => o.remove()); if (S.role==='user') setTimeout(focusScan, 30); }
+function confirmBox(title, msg, okLabel='Confirm', danger=false){
+  return new Promise(res => {
+    const ov = openModal(`
+      <div class="modal-h"><div class="micon ${danger?'bad':''}">${danger?I.warn:I.info}</div><div><h3>${title}</h3></div></div>
+      <div class="modal-b">${msg}</div>
+      <div class="modal-f"><button class="btn ghost" data-a="no">Cancel</button><button class="btn ${danger?'danger':''}" data-a="yes">${okLabel}</button></div>`);
+    ov.querySelector('[data-a=no]').onclick = () => { closeModal(); res(false); };
+    ov.querySelector('[data-a=yes]').onclick = () => { closeModal(); res(true); };
+  });
+}
+document.addEventListener('keydown', e => { if (e.key==='Escape' && modalOpen()) closeModal(); });
+
+/* =====================================================================
+   DATA
+   ===================================================================== */
+I.swap = '<svg class="i" viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
+const keyOf = (task, m) => task + '|' + norm(m);
+function ingest(data){
+  const prevMats = S.matsRaw;
+  if (data.materials) S.matsRaw = data.materials;
+  S.data = Object.assign({}, S.data || {}, data);
+  if (!data.materials) S.data.materials = prevMats;
+  S.mv = data.mv; S.pv = data.pv;
+  if (data.me && S.role==='user') S.cat = data.me.cat;
+  const raw = S.matsRaw || [];
+  const byKey = new Map(), byCode = new Map(), byMat = new Map();
+  const mats = raw.map(r => ({ task:r[0], m:r[1], d:r[2], oh:r[3], os:r[4], bc:r[5], cat:catOf(r[1]), picks:[], taken:0, rem:0, status:ST.NONE, takers:[], lastTs:0 }));
+  const push = (map, k, o) => { if (!k) return; const a = map.get(k); if (a) a.push(o); else map.set(k, [o]); };
+  mats.forEach(o => { o.k = keyOf(o.task, o.m); byKey.set(o.k, o); push(byCode, norm(o.bc), o); push(byMat, norm(o.m), o); });
+  const picks = (data.picks || []).map(p => ({ id:p[0], ts:p[1], task:p[2], m:p[3], user:p[4], qty:p[5], eb:p[6], ea:p[7] }));
+  picks.forEach(p => { const o = byKey.get(keyOf(p.task, p.m)); if (o){ o.picks.push(p); p.o = o; } });
+  mats.forEach(o => {
+    o.picks.sort((a,b) => a.ts-b.ts);
+    const by = {};
+    o.picks.forEach(p => { o.taken += p.qty; by[p.user] = (by[p.user]||0) + p.qty; o.lastTs = Math.max(o.lastTs, p.ts); });
+    o.takers = Object.keys(by).map(u => ({ user:u, qty:by[u], last:Math.max(...o.picks.filter(p=>p.user===u).map(p=>p.ts)) }));
+    o.rem = Math.max(0, o.os - o.taken);
+    o.status = o.taken<=0 ? ST.NONE : (o.taken>=o.os ? ST.FULL : ST.PART);
+  });
+  picks.sort((a,b) => b.ts-a.ts);
+  S.mats = mats; S.picks = picks; S.byKey = byKey; S.byCode = byCode; S.byMat = byMat;
+}
+/** Picker scope: chosen task + own category (OTH items are open to everyone) */
+const inMyCat = o => S.role!=='user' || S.cat==='ALL' || o.cat===S.cat || o.cat==='OTH';
+const inScope = o => o.task===S.task && inMyCat(o);
+const scopeMats = () => S.mats.filter(inScope);
+function findAll(q){ const n = norm(q); if (!n) return []; return (S.byCode.get(n) || []).concat((S.byMat.get(n) || []).filter(o => !(S.byCode.get(n)||[]).includes(o))); }
+function findMat(q){ const all = findAll(q); return all.find(inScope) || all[0] || null; }
+
+/* ---------- Barcode / QR / GS1 DataMatrix decoding ----------
+   Pharma QR / DataMatrix codes hold several values in one string, e.g.
+   ]d2 01 07640153087850 17 271231 10 BATCH 21 SERIAL  (or "(01)…(17)…").
+   We pull out the product code (GTIN, AI 01) and match only that.        */
+function scanCandidates(raw){
+  let s = String(raw||'').replace(/[\r\n\t]/g,'').trim();
+  s = s.replace(/^\][A-Za-z]\d/, '');                        // symbology id: ]d2 ]Q3 ]C1 ]e0
+  const out = [];
+  const add = (c, how) => { c = String(c||'').trim(); if (c && !out.some(x => x.c===c)) out.push({ c, how }); };
+  add(s, 'direct');
+  const clean = s.replace(/[\u001d\u001e\u0004]/g, '|');     // GS / RS / EOT separators
+  let m;
+  if ((m = clean.match(/\/01\/(\d{8,14})/))) add(m[1], 'gs1');          // GS1 Digital Link URL
+  if ((m = clean.match(/\(01\)\s*(\d{14})/))) add(m[1], 'gs1');         // (01)GTIN human readable
+  if ((m = clean.match(/(?:^|\|)0[12](\d{14})/))) add(m[1], 'gs1');     // raw element string 01/02 + GTIN
+  if ((m = clean.match(/\(02\)\s*(\d{14})/))) add(m[1], 'gs1');         // contained GTIN
+  clean.split(/[^0-9A-Za-z\-]+/).forEach(t => { if (t.length >= 4) add(t, 'token'); });
+  return out;
+}
+function resolveScan(raw){
+  const cands = scanCandidates(raw);
+  for (const x of cands){ const all = findAll(x.c); if (all.length) return { all, o: all.find(inScope) || all[0], code:x.c, how:x.how, cands }; }
+  for (const run of String(raw||'').split(/\D+/)){
+    if (run.length < 12) continue;
+    for (const L of [14,13,12]) for (let i=0; i+L<=run.length; i++){
+      const sub = run.substr(i, L); const all = S.byCode.get(norm(sub));
+      if (all) return { all, o: all.find(inScope) || all[0], code:sub, how:'embedded', cands };
+    }
+  }
+  const g = cands.find(x => x.how==='gs1');
+  return { all:[], o:null, code: g ? g.c : (cands[0] ? cands[0].c : ''), how: g ? 'gs1' : 'none', cands };
+}
+const isCodeLike = q => /[\u001d\u001e()\]\/]/.test(q) || (/^\S+$/.test(q) && q.length > 16) || /^\d{6,}$/.test(q);
+
+function searchList(list, q, filter='all', limit=Infinity){
+  const words = String(q||'').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const out = [];
+  for (const o of list){
+    if (filter==='none' && o.status!==ST.NONE) continue;
+    if (filter==='part' && o.status!==ST.PART) continue;
+    if (filter==='full' && o.status!==ST.FULL) continue;
+    if (filter==='open' && o.status===ST.FULL) continue;
+    if (words.length){ const hay = (o.m+' '+o.bc+' '+o.d).toLowerCase(); if (!words.every(w => hay.includes(w))) continue; }
+    out.push(o); if (out.length>=limit) break;
+  }
+  return out;
+}
+function totalsOf(list){
+  const t = { items:list.length, os:0, taken:0, rem:0, full:0, part:0, none:0 };
+  list.forEach(o => { t.os+=o.os; t.taken+=Math.min(o.taken,o.os); t.rem+=o.rem; if(o.status===ST.FULL)t.full++; else if(o.status===ST.PART)t.part++; else t.none++; });
+  t.pct = t.os ? Math.round(t.taken/t.os*1000)/10 : 0;
+  return t;
+}
+const pickersList = () => ((S.data && S.data.users) || []).filter(u => u[2]==='user');
+
+/* ---------------- Live sync ---------------- */
+function setLive(on){
+  S.online = on;
+  $('#liveDot').classList.toggle('off', !on);
+  $('#liveTxt').textContent = on ? 'Live' : 'Offline';
+}
+async function refresh(silent=true, needMats){
+  const data = await api('getData', S.token, needMats !== false);
+  applyData(data, silent);
+}
+function applyData(data, silent=true){
+  const prevCur = S.current ? S.byKey.get(S.current) : null;
+  const prevTaken = prevCur ? prevCur.taken : null;
+  const prevIds = prevCur ? new Set(prevCur.picks.map(p => p.id)) : null;
+  const prevFile = S.data && S.data.uploadedAt;
+  ingest(data);
+  renderHeader();
+  if (silent && prevFile && data.uploadedAt && prevFile !== data.uploadedAt){
+    toast('A new overstock list was uploaded by the admin','warn',4000);
+    S.current = null;
+  }
+  if (silent && S.role==='user' && S.current){
+    const o = S.byKey.get(S.current);
+    if (o && prevTaken!==null && o.taken !== prevTaken){
+      const fresh = o.picks.filter(p => !prevIds.has(p.id) && p.user!==S.user);
+      if (fresh.length){ toast(esc(fresh[0].user)+' just picked '+fresh[0].qty+' pc of this material','warn',3500); sfx.warn(); }
+    }
+  }
+  if (silent && S.role==='admin' && ['upload','settings','export','users'].includes(S.adm.view)) { renderNav(); return; }
+  rerender();
+}
+function startPolling(){ stopPolling(); S.pollTimer = setInterval(poll, POLL_MS); }
+function stopPolling(){ if (S.pollTimer) clearInterval(S.pollTimer); S.pollTimer = null; }
+async function poll(){
+  if (S.polling || !S.token || document.hidden) return;
+  S.polling = true;
+  try{
+    const v = String(await api('getVersion', S.token)).split('|');
+    setLive(true);
+    if (v[0] !== String(S.mv)) await refresh(true, true);
+    else if (v[1] !== String(S.pv)) await refresh(true, false);
+  }catch(e){ setLive(false); }
+  finally{ S.polling = false; }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+
+/* =====================================================================
+   AUTH
+   ===================================================================== */
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const u = $('#lgUser').value.trim(), p = $('#lgPass').value;
+  $('#lgErr').textContent = ''; $('#lgBtn').disabled = true; $('#lgBtn').textContent = 'Signing in…';
+  try{
+    const r = await api('login', u, p);
+    S.token=r.token; S.user=r.username; S.role=r.role; S.cat=r.cat; S.name=r.displayName; S.task=null;
+    saveSession();
+    await enterApp();
+  }catch(err){ $('#lgErr').textContent = err.message; sfx.bad(); }
+  finally{ $('#lgBtn').disabled=false; $('#lgBtn').textContent='Sign in'; }
+});
+function saveSession(){ store.set('session', { v:3, token:S.token, user:S.user, role:S.role, cat:S.cat, name:S.name, task:S.task }); }
+function showLogin(){
+  $('#shell').classList.add('hidden'); $('#login').classList.remove('hidden');
+  $('#bnav').classList.remove('show');
+  setTimeout(()=>$('#lgUser').focus(), 50);
+}
+async function enterApp(){
+  $('#login').classList.add('hidden'); $('#shell').classList.remove('hidden');
+  S.view = S.role==='admin' ? 'dash' : (S.task ? 'scan' : 'task');
+  S.adm.view = 'dash';
+  loading(true, 'Loading overstock list…');
+  try{ await refresh(false, true); setLive(true); }
+  catch(e){ toast(esc(e.message),'bad',5000); }
+  finally{ loading(false); }
+  if (S.role==='user'){ S.myScans = store.get('scans_'+S.user) || []; }
+  startPolling();
+  rerender();
+}
+function logout(){
+  stopPolling(); stopCamera();
+  S.token=null; S.user=null; S.role=null; S.cat=null; S.task=null; S.data=null; S.matsRaw=null; S.current=null; S.mv=null; S.pv=null;
+  store.del('session'); closeModal();
+  $('#lgPass').value = '';
+  showLogin();
+}
+$('#tbTask').onclick = () => setView('task');
+$('#btnLogout').onclick = async () => { if (await confirmBox('Sign out?', 'You will need to sign in again to continue.', 'Sign out')) logout(); };
+
+/* =====================================================================
+   HEADER / NAV
+   ===================================================================== */
+function renderHeader(){
+  const d = S.data || {};
+  $('#tbPharm').textContent = 'Pharmacy ' + (d.pharmacy || '');
+  $('#tbSub').textContent = S.role==='admin' ? 'Admin portal' : (CAT_NAME[S.cat] || '') + ' picker';
+  $('#tbUser').textContent = S.user || '';
+  $('#tbAvatar').textContent = S.role==='admin' ? 'AD' : (S.user||'').replace(/-0*/,'').slice(0,4);
+  const tp = $('#tbTask');
+  if (S.role==='user' && S.task){
+    tp.classList.remove('hidden');
+    tp.innerHTML = `<b>${S.task==='Core'?'T1':'T2'}</b>&nbsp;${S.task} · ${esc(S.cat)}`;
+    tp.classList.toggle('backup', S.task==='Backup');
+  } else tp.classList.add('hidden');
+  document.title = 'Overstock ' + (d.pharmacy || '');
+}
+function renderNav(){
+  if (S.role==='admin'){
+    const items = [['dash','Dashboard',I.dash],['materials','Materials',I.box],['picks','Pick Log',I.list],['scans','Scan Log',I.eye],['users','Users',I.user],['upload','Upload',I.up],['export','Export',I.down],['settings','Settings',I.gear]];
+    $('#tabs').innerHTML = items.map(([k,l,ic]) => `<button class="tab ${S.adm.view===k?'on':''}" data-v="${k}">${ic}${l}</button>`).join('');
+    $('#tabs').querySelectorAll('.tab').forEach(b => b.onclick = () => { S.adm.view=b.dataset.v; rerender(); window.scrollTo(0,0); });
+    $('#bnav').classList.remove('show');
+  } else {
+    if (S.view==='task' || !S.task){ $('#tabs').innerHTML=''; $('#bnav').classList.remove('show'); return; }
+    const mine = S.picks.filter(p=>p.user===S.user && p.task===S.task).length;
+    const items = [['scan','Scan',I.scan],['search','My list',I.search],['history','History',I.hist],['task','Task',I.swap]];
+    $('#tabs').innerHTML = '<div class="utabs" style="display:contents">' + items.map(([k,l,ic]) => `<button class="tab ${S.view===k?'on':''}" data-v="${k}">${ic}${l}${k==='history'&&mine?` <span class="count">${mine}</span>`:''}</button>`).join('') + '</div>';
+    $('#bnav').innerHTML = items.map(([k,l,ic]) => `<button class="${S.view===k?'on':''}" data-v="${k}">${ic}${l}</button>`).join('');
+    $('#bnav').classList.add('show');
+    document.querySelectorAll('#tabs .tab, #bnav button').forEach(b => b.onclick = () => setView(b.dataset.v));
+  }
+}
+function setView(v){
+  if (v!=='scan') stopCamera();
+  S.view = v; rerender(); window.scrollTo(0,0);
+  if (v==='scan') focusScan();
+  if (v==='history') loadMyScans();
+}
+function rerender(){
+  if (!S.role) return;
+  renderNav();
+  if (S.role==='admin') return renderAdmin();
+  if (!S.task || S.view==='task') return renderTaskChooser();
+  if (S.view==='scan') renderScanView();
+  else if (S.view==='search') renderSearchView();
+  else renderHistoryView();
+}
+
+/* =====================================================================
+   USER — TASK CHOOSER
+   ===================================================================== */
+function renderTaskChooser(){
+  S.view = 'task';
+  const card = t => {
+    const list = S.mats.filter(o => o.task===t && inMyCat(o));
+    const x = totalsOf(list);
+    const main = t==='Core';
+    return `<button class="taskcard ${main?'main':''} ${S.task===t?'cur':''}" data-t="${t}">
+      <div class="row"><span class="tasknum">${main?'1':'2'}</span><div class="grow" style="text-align:left"><div class="tk-title">${main?'Task 1 · Core':'Task 2 · Backup'}</div>
+      <div class="muted" style="font-size:13px">${main?'Main overstock list':'Backup list'}</div></div>${main?'<span class="pill dark" style="height:22px;font-size:11px">MAIN</span>':''}</div>
+      <div class="tk-stats"><div><b>${fmtN(x.none+x.part)}</b><span>items to find</span></div><div><b>${fmtN(x.rem)}</b><span>pcs remaining</span></div><div><b>${x.pct}%</b><span>done</span></div></div>
+      <div class="bar ${x.pct>=100?'ok':''}"><i style="width:${Math.min(100,x.pct)}%"></i></div>
+    </button>`;
+  };
+  $('#main').innerHTML = `
+    <div style="max-width:620px;margin:6px auto 0">
+      <div style="text-align:center;margin:8px 0 18px">
+        <div class="catbadge ${S.cat}">${esc(CAT_NAME[S.cat]||S.cat)}</div>
+        <h2 style="margin:10px 0 4px;letter-spacing:-.02em">Hello ${esc(S.user)}, choose your task</h2>
+        <div class="muted" style="font-size:14px">You will only see <b>${esc(CAT_NAME[S.cat]||'')}</b> items (material numbers starting with ${Object.keys(CAT_DIGIT).find(k=>CAT_DIGIT[k]===S.cat)||'—'}).</div>
+      </div>
+      ${card('Core')}${card('Backup')}
+      ${!S.mats.length?'<div class="banner warn" style="margin:14px 0 0">'+I.warn+'<div>No overstock list uploaded yet. Ask your admin to upload the file.</div></div>':''}
+    </div>`;
+  $('#main').querySelectorAll('[data-t]').forEach(b => b.onclick = () => chooseTask(b.dataset.t));
+  renderHeader();
+}
+function chooseTask(t){
+  S.task = t; S.current = null; S.searchQ=''; S.searchF='open'; saveSession();
+  renderHeader();
+  toast('Working on <b>'+TASK_LABEL[t]+'</b>','ok',1800);
+  setView('scan');
+}
+
+/* =====================================================================
+   USER — SCAN VIEW
+   ===================================================================== */
+function statsStrip(){
+  const x = totalsOf(scopeMats());
+  const myQty = S.picks.filter(p=>p.user===S.user && p.task===S.task && isToday(p.ts)).reduce((a,p)=>a+p.qty,0);
+  return `<div class="strip">
+    <div class="s"><b>${fmtN(x.none+x.part)}</b><span>To find</span></div>
+    <div class="s"><b>${fmtN(x.rem)}</b><span>Pcs left</span></div>
+    <div class="s"><b>${fmtN(x.full)}</b><span>Done</span></div>
+    <div class="s"><b>${fmtN(myQty)}</b><span>My pcs</span></div></div>`;
+}
+function renderScanView(){
+  const main = $('#main');
+  if (!main.querySelector('#scanView')){
+    main.innerHTML = `<div id="scanView">
+      <div id="stripBox"></div>
+      <div class="card scanbar">
+        <div class="scanwrap">
+          <div class="grow" style="position:relative">
+            <span class="scanicon">${I.scan}</span>
+            <input id="scanInput" class="input scaninput" placeholder="Scan or type material…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+            <div id="suggest" class="suggest hidden"></div>
+          </div>
+          <button class="iconbtn" id="btnKb" title="Keyboard on/off" style="height:58px;width:52px">${I.kb}</button>
+          <button class="iconbtn" id="btnCam" title="Camera scanner" style="height:58px;width:52px">${I.cam}</button>
+        </div>
+        <div class="scanhint"><span class="ready" id="readyTxt"><span class="live"></span>Ready · ${esc(S.task)} · ${esc(CAT_NAME[S.cat]||'')}</span><span id="lastScan"></span></div>
+        <div id="camBox" class="hidden"><button class="btn sm ghost camclose" id="btnCamClose">${I.x}Close</button><div id="camReader"></div></div>
+      </div>
+      <div id="cardBox"></div>
+    </div>`;
+    wireScanInput();
+  }
+  $('#stripBox').innerHTML = statsStrip();
+  applyKbMode();
+  $('#lastScan').textContent = S.lastScan ? 'Last: ' + S.lastScan : '';
+  renderCard();
+}
+function emptyCard(){
+  return `<div class="card matcard"><div class="empty">
+    <div class="big">${I.scan}</div><h3>Scan a ${esc(CAT_NAME[S.cat]||'')} item</h3>
+    <div>${esc(TASK_LABEL[S.task])} · use the handheld scanner, the camera, or type a material number / name.<br>The scan field is always listening — no need to tap.</div></div></div>`;
+}
+function renderCard(){
+  const box = $('#cardBox'); if (!box) return;
+  const o = S.current ? S.byKey.get(S.current) : null;
+  if (!o){ box.innerHTML = emptyCard(); return; }
+  const prevQty = $('#qtyInput') ? $('#qtyInput').value : null;
+  const hadFocus = document.activeElement && document.activeElement.id==='qtyInput';
+  const pct = o.os ? Math.min(100, Math.round(o.taken/o.os*100)) : 0;
+  let banner = '';
+  if (o.status===ST.FULL){
+    banner = `<div class="banner ok">${I.ok}<div><b>Full quantity taken.</b> All ${o.os} pc required were taken by ${o.takers.map(t=>'<b>'+esc(t.user)+'</b> ('+t.qty+' pc)').join(', ')}.</div></div>`;
+  } else if (o.status===ST.PART){
+    banner = `<div class="banner warn">${I.warn}<div><b>${o.taken} pc already taken</b> by ${o.takers.map(t=>'<b>'+esc(t.user)+'</b> ('+t.qty+')').join(', ')}. Find the remaining <b>${o.rem} pc</b>.</div></div>`;
+  }
+  const takersHtml = o.picks.length ? `<div class="takers">${o.picks.slice().reverse().map(p => `
+      <div class="taker"><div class="avatar" style="width:28px;height:28px;font-size:9px">${esc(p.user.replace(/-0*/,''))}</div>
+      <div class="grow"><b>${esc(p.user)}</b> took <b>${p.qty} pc</b> <span class="muted">· ${ago(p.ts)}${p.eb?' · edited':''}</span></div>
+      ${p.user===S.user?`<button class="btn xs ghost" data-edit="${esc(p.id)}">${I.edit}Edit</button>`:''}</div>`).join('')}</div>` : '';
+  const form = o.rem > 0 ? `
+    <div class="pickform">
+      <label class="lbl" for="qtyInput">Picked quantity</label>
+      <div class="qtyrow">
+        <button class="qtybtn" id="qMinus" type="button">−</button>
+        <input id="qtyInput" class="input qtyinput" type="number" inputmode="numeric" min="1" max="${o.rem}" value="${(hadFocus&&prevQty!==null)?esc(prevQty):o.rem}" enterkeyhint="done">
+        <button class="qtybtn" id="qPlus" type="button">+</button>
+      </div>
+      <div class="quick"><button class="btn grow lg" id="btnPick">${I.ok}Confirm pick</button></div>
+      <div class="muted" style="font-size:12.5px;margin-top:8px">Press <b>Enter</b> to confirm · max ${o.rem} pc</div>
+    </div>` : '';
+  box.innerHTML = `<div class="card matcard">
+    <div class="mat-head">
+      <div class="mat-no"><span>MATERIAL ${esc(o.m)}</span><span>BARCODE ${esc(o.bc||'—')}</span><span class="cattag ${o.cat}">${esc(o.cat)}</span><span class="tasktag ${o.task}">${o.task==='Core'?'T1 CORE':'T2 BACKUP'}</span></div>
+      <div class="mat-desc">${esc(o.d)}</div>
+    </div>
+    <div class="two">
+      <div><label>On hand stock</label><b>${fmtN(o.oh)}<small>pc</small></b></div>
+      <div><label>Remaining qty</label><b style="color:${o.rem===0?'var(--ok)':'var(--ink)'}">${fmtN(o.rem)}<small>of ${fmtN(o.os)}</small></b></div>
+    </div>
+    <div class="prog">
+      <div class="bar ${o.status===ST.FULL?'ok':o.status===ST.PART?'warn':''}"><i style="width:${pct}%"></i></div>
+      <div class="meta"><span>Overstock required <b style="color:var(--ink)">${o.os} pc</b> · Taken <b style="color:var(--ink)">${o.taken} pc</b></span><span class="status ${stClass(o.status)}">${stShort(o.status)}</span></div>
+    </div>
+    ${banner}${takersHtml}${form}
+  </div>`;
+  box.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editPickModal(b.dataset.edit));
+  if (o.rem > 0){
+    const qi = $('#qtyInput');
+    $('#qMinus').onclick = () => { qi.value = Math.max(1, (parseInt(qi.value)||1)-1); };
+    $('#qPlus').onclick  = () => { qi.value = Math.min(o.rem, (parseInt(qi.value)||0)+1); };
+    $('#btnPick').onclick = () => confirmPick();
+    qi.addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); confirmPick(); } });
+    if (hadFocus) qi.focus();
+  }
+}
+function openMaterial(o){
+  S.current = o.k;
+  if (S.view!=='scan'){ S.view='scan'; rerender(); } else renderCard();
+  hideSuggest();
+  if (o.rem<=0 && o.taken>0) showFullWarning(o);
+  else if (o.rem>0){
+    const qi = $('#qtyInput');
+    if (qi){ qi.value = o.rem; setTimeout(()=>{ qi.focus(); qi.select(); }, 40); }
+    if (o.status===ST.PART) sfx.warn(); else sfx.scan();
+  }
+  $('#cardBox') && $('#cardBox').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function showFullWarning(o){
+  sfx.warn();
+  const who = o.takers.map(t => `<div class="taker"><div class="avatar" style="width:28px;height:28px;font-size:9px">${esc(t.user.replace(/-0*/,''))}</div><div class="grow"><b>${esc(t.user)}</b></div><b>${t.qty} pc</b><span class="muted" style="font-size:12px">${ago(t.last)}</span></div>`).join('');
+  openModal(`
+    <div class="modal-h"><div class="micon warn">${I.warn}</div><div><h3>Already fully taken</h3>
+      <div class="muted" style="font-size:13px;margin-top:2px">Material ${esc(o.m)} · ${esc(o.task)}</div></div></div>
+    <div class="modal-b"><p style="margin:0 0 12px"><b>${esc(o.d)}</b></p>
+      <p style="margin:0 0 12px">All the required quantity (<b>${o.os} pc</b>) has already been taken by ${o.takers.map(t=>'<b>'+esc(t.user)+'</b>').join(', ')}. No need to pick this item.</p>
+      <div class="card" style="padding:4px 14px;box-shadow:none">${who}</div></div>
+    <div class="modal-f"><button class="btn block" id="fwOk">OK, scan next</button></div>`).querySelector('#fwOk').onclick = () => closeModal();
+}
+async function confirmPick(){
+  const o = S.byKey.get(S.current); if (!o) return;
+  const qi = $('#qtyInput'); const btn = $('#btnPick');
+  const qty = parseInt(qi && qi.value, 10);
+  if (!(qty>0)){ toast('Enter the quantity you picked','bad'); sfx.bad(); qi && qi.focus(); return; }
+  if (qty > o.rem){ toast('Only '+o.rem+' pc remaining for this material','bad'); sfx.bad(); qi.value=o.rem; qi.select(); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spin" style="width:18px;height:18px;border-width:2px;border-top-color:#fff"></span>Saving…';
+  try{
+    const r = await api('submitPick', S.token, o.task, o.m, qty);
+    if (r.ok && qi) qi.blur();
+    applyData(r.data, false);
+    const n = S.byKey.get(o.k);
+    if (r.ok){
+      sfx.ok();
+      if (n.status===ST.FULL) toast('Picked '+qty+' pc · <b>Full quantity taken</b>','ok');
+      else toast('Picked '+qty+' pc · Partially taken — '+n.rem+' pc still needed','ok',3200);
+      focusScan();
+    } else if (r.code==='FULL'){ showFullWarning(n); }
+    else if (r.code==='EXCEEDS'){
+      sfx.warn();
+      openModal(`<div class="modal-h"><div class="micon warn">${I.warn}</div><div><h3>Quantity changed</h3></div></div>
+        <div class="modal-b">Someone just picked this material. Only <b>${n.rem} pc</b> remain now (taken by ${n.takers.map(t=>esc(t.user)+' ('+t.qty+')').join(', ')}). Please re-enter your quantity.</div>
+        <div class="modal-f"><button class="btn" id="exOk">OK</button></div>`).querySelector('#exOk').onclick = () => { closeModal(); setTimeout(()=>{ const q=$('#qtyInput'); if(q){ q.focus(); q.select(); } },60); };
+    }
+  }catch(e){ toast(esc(e.message),'bad',4000); sfx.bad(); }
+  finally{ const b=$('#btnPick'); if(b){ b.disabled=false; b.innerHTML=I.ok+'Confirm pick'; } }
+}
+
+let sinp = { first:0, last:0, timer:null, sugTimer:null, sugIdx:-1 };
+function kbMode(){ const v = store.get('kbmode'); return v===null ? !('ontouchstart' in window || navigator.maxTouchPoints>0) : v; }
+function applyKbMode(){
+  const si = $('#scanInput'); if (!si) return;
+  const on = kbMode();
+  si.setAttribute('inputmode', on ? 'search' : 'none');
+  $('#btnKb').classList.toggle('on', on);
+  $('#btnKb').title = on ? 'On-screen keyboard: ON (tap to hide for scanner-only mode)' : 'On-screen keyboard: OFF (scanner mode)';
+}
+function focusScan(){
+  if (S.role!=='user' || S.view!=='scan' || modalOpen()) return;
+  const si = $('#scanInput'); if (!si) return;
+  const ae = document.activeElement;
+  if (ae && ae!==si && ae.id==='qtyInput') return;
+  si.focus({ preventScroll:true });
+}
+function wireScanInput(){
+  const si = $('#scanInput');
+  si.addEventListener('keydown', e => {
+    const sg = $('#suggest');
+    if (e.key==='Enter'){
+      e.preventDefault(); clearTimeout(sinp.timer);
+      const on = sg && !sg.classList.contains('hidden') && sg.querySelector('.sug.on');
+      if (on) { on.click(); return; }
+      handleScan(si.value, 'enter');
+    } else if ((e.key==='ArrowDown'||e.key==='ArrowUp') && sg && !sg.classList.contains('hidden')){
+      e.preventDefault();
+      const items = [...sg.querySelectorAll('.sug')]; if (!items.length) return;
+      sinp.sugIdx = Math.max(0, Math.min(items.length-1, sinp.sugIdx + (e.key==='ArrowDown'?1:-1)));
+      items.forEach((x,i)=>x.classList.toggle('on', i===sinp.sugIdx));
+    }
+  });
+  si.addEventListener('input', () => {
+    const now = performance.now();
+    if (si.value.length<=1) sinp.first = now;
+    sinp.last = now;
+    clearTimeout(sinp.timer); clearTimeout(sinp.sugTimer);
+    // Auto-detect scanners that do not send Enter: fast burst + 220ms idle
+    sinp.timer = setTimeout(() => {
+      const v = si.value.trim(); const len = v.length;
+      const avg = (sinp.last - sinp.first) / Math.max(1, len-1);
+      if (len>=6 && avg<35 && /^[\x21-\x7e\u001d]+$/.test(v)) handleScan(v, 'auto');
+    }, 220);
+    sinp.sugTimer = setTimeout(renderSuggest, 160);
+  });
+  si.addEventListener('blur', () => setTimeout(() => { if (!document.activeElement || document.activeElement===document.body) hideSuggest(); }, 150));
+  $('#btnCam').onclick = () => S.cam ? stopCamera() : startCamera();
+  $('#btnCamClose').onclick = () => stopCamera();
+  $('#btnKb').onclick = () => { store.set('kbmode', !kbMode()); applyKbMode(); si.blur(); setTimeout(()=>si.focus(),50); toast(kbMode()?'On-screen keyboard enabled':'Scanner mode: on-screen keyboard hidden'); };
+  setTimeout(focusScan, 50);
+}
+function renderSuggest(){
+  const si = $('#scanInput'), sg = $('#suggest'); if (!si||!sg) return;
+  const v = si.value.trim();
+  const avg = (sinp.last - sinp.first) / Math.max(1, v.length-1);
+  if (v.length<2 || (v.length>=6 && avg<35)){ hideSuggest(); return; }
+  const res = searchList(scopeMats(), v, 'all', 8);
+  sinp.sugIdx = -1;
+  if (!res.length){ sg.innerHTML = '<div class="sug muted">No matching '+esc(CAT_NAME[S.cat]||'')+' item in '+esc(S.task)+'</div>'; sg.classList.remove('hidden'); return; }
+  sg.innerHTML = res.map(o => `<div class="sug" data-k="${esc(o.k)}"><div class="grow"><div class="mono muted" style="font-size:11.5px">${esc(o.m)} · ${esc(o.bc)}</div><div style="font-weight:600">${esc(o.d)}</div></div><span class="status ${stClass(o.status)}">${o.rem}/${o.os}</span></div>`).join('');
+  sg.classList.remove('hidden');
+  sg.querySelectorAll('.sug[data-k]').forEach(x => x.onmousedown = x.onclick = (e) => { e.preventDefault(); const o=S.byKey.get(x.dataset.k); si.value=''; hideSuggest(); if(o){ logScanEvt(v,o); openMaterial(o); } });
+}
+function hideSuggest(){ const sg=$('#suggest'); if(sg){ sg.classList.add('hidden'); sg.innerHTML=''; } }
+
+function handleScan(raw){
+  const q = String(raw||'').trim();
+  const si = $('#scanInput');
+  clearTimeout(sinp.timer);
+  if (!q) return;
+  if (modalOpen()) closeModal();
+  if (si) si.value = '';
+  hideSuggest();
+  const r = resolveScan(q);
+  const shown = r.code || q;
+  const fromQr = r.how!=='direct' && shown!==q;
+  S.lastScan = shown + (fromQr ? ' (from QR)' : '');
+  const ls = $('#lastScan'); if (ls) ls.textContent = 'Last: ' + S.lastScan;
+  let o = r.all.find(inScope) || null;
+  if (!o && !r.all.length && !isCodeLike(q)){
+    const res = searchList(scopeMats(), q, 'all', 50);
+    if (res.length===1) o = res[0];
+    else if (res.length>1){ S.searchQ = q; S.searchF='all'; setView('search'); return; }
+  }
+  if (o){ if (S.view!=='scan'){ S.view='scan'; rerender(); } logScanEvt(shown, o); openMaterial(o); return; }
+  // Found, but not in this picker's list → explain clearly
+  const other = r.all[0];
+  if (other){
+    sfx.bad();
+    const sameCat = inMyCat(other);
+    logScanEvt(shown, other, sameCat ? 'In other task ('+other.task+')' : 'Other category ('+other.cat+')');
+    const body = sameCat
+      ? `This item is in <b>${esc(TASK_LABEL[other.task])}</b>. You are working on <b>${esc(TASK_LABEL[S.task])}</b>.`
+      : `This item belongs to the <b>${esc(CAT_NAME[other.cat])}</b> pickers (${esc(other.cat)}). It is not on your ${esc(CAT_NAME[S.cat])} list — leave it for them.`;
+    const ov = openModal(`<div class="modal-h"><div class="micon warn">${I.warn}</div><div><h3>${sameCat?'Different task':'Not your category'}</h3><div class="muted" style="font-size:13px">Material ${esc(other.m)}</div></div></div>
+      <div class="modal-b"><p style="margin:0 0 10px"><b>${esc(other.d)}</b></p>${body}</div>
+      <div class="modal-f">${sameCat?`<button class="btn ghost" id="otSwitch">Switch to ${esc(other.task)}</button>`:''}<button class="btn" id="otOk">OK, scan next</button></div>`);
+    ov.querySelector('#otOk').onclick = closeModal;
+    const sw = ov.querySelector('#otSwitch');
+    if (sw) sw.onclick = () => { closeModal(); S.task = other.task; saveSession(); renderHeader(); S.view='scan'; rerender(); openMaterial(other); };
+    return;
+  }
+  sfx.bad();
+  logScanEvt(shown, null);
+  openModal(`<div class="modal-h"><div class="micon bad">${I.x}</div><div><h3>Not in overstock list</h3></div></div>
+    <div class="modal-b"><div class="mono" style="font-size:16px;font-weight:600;margin-bottom:4px">${esc(shown)}</div>${fromQr?`<div class="muted mono" style="font-size:11.5px;word-break:break-all;margin-bottom:8px">Read from QR: ${esc(q.replace(/[\u001d]/g,' '))}</div>`:'<div style="height:6px"></div>'}This barcode / material is not in the Core or Backup list for pharmacy <b>${esc(S.data&&S.data.pharmacy)}</b>. Put it back and scan the next item.</div>
+    <div class="modal-f"><button class="btn block" id="nfOk">OK, scan next</button></div>`).querySelector('#nfOk').onclick = closeModal;
+}
+function logScanEvt(q, o, resultOverride){
+  const result = resultOverride || (!o ? 'Not found' : (o.status===ST.FULL ? 'Already fully taken' : o.status===ST.PART ? 'Partially taken ('+o.rem+' left)' : 'Found'));
+  const rec = [Date.now(), S.task, q, o?o.m:'', o?o.d:'', result];
+  S.myScans.unshift(rec); S.myScans = S.myScans.slice(0,300);
+  store.set('scans_'+S.user, S.myScans);
+  api('logScan', S.token, S.task, q, o?o.m:'', o?o.d:'', result).catch(()=>{});
+}
+
+/* Global keyboard-wedge listener: catches scanner bursts even when focus is elsewhere */
+const kb = { buf:'', first:0, last:0, target:null, snap:null, timer:null };
+const isEditable = el => el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA' || el.tagName==='SELECT' || el.isContentEditable);
+document.addEventListener('keydown', e => {
+  if (S.role!=='user' || !S.token) return;
+  const t = e.target;
+  if (t && t.id==='scanInput') return;
+  const now = performance.now();
+  if (e.key && e.key.length===1 && !e.ctrlKey && !e.metaKey && !e.altKey){
+    if (now - kb.last > 60){ kb.buf=''; kb.first=now; kb.target=t; kb.snap = (t && 'value' in t) ? t.value : null; }
+    kb.buf += e.key; kb.last = now;
+    clearTimeout(kb.timer);
+    // Scanners that send no Enter: fast burst of 6+ chars followed by silence
+    kb.timer = setTimeout(() => {
+      const len = kb.buf.length, avg = (kb.last - kb.first) / Math.max(1, len-1);
+      if (len>=6 && avg<35){
+        const code = kb.buf; kb.buf='';
+        if (kb.target && kb.snap!==null && 'value' in kb.target) kb.target.value = kb.snap;
+        handleScan(code, 'scanner');
+      }
+    }, 220);
+    if (!isEditable(t) && !modalOpen() && S.view==='scan'){
+      e.preventDefault(); const si=$('#scanInput');
+      if (si){ si.focus(); si.value += e.key; si.dispatchEvent(new Event('input')); }
+      kb.buf='';
+    }
+  } else if (e.key==='Enter'){
+    clearTimeout(kb.timer);
+    if (kb.buf.length>=5 && now - kb.last < 100){
+      e.preventDefault(); e.stopPropagation();
+      const code = kb.buf; kb.buf='';
+      if (kb.target && kb.snap!==null && kb.target===t && 'value' in t) t.value = kb.snap;
+      handleScan(code, 'scanner');
+      return;
+    }
+    kb.buf='';
+  }
+}, true);
+document.addEventListener('click', e => {
+  if (S.role==='user' && S.view==='scan' && !isEditable(e.target) && !e.target.closest('button,a,.sug,.overlay')) setTimeout(focusScan, 10);
+});
+
+/* ---------------- Camera scanning ---------------- */
+async function startCamera(){
+  if (typeof Html5Qrcode==='undefined'){ toast('Camera scanner library could not load','bad'); return; }
+  $('#camBox').classList.remove('hidden'); $('#btnCam').classList.add('on');
+  const F = Html5QrcodeSupportedFormats;
+  try{
+    S.cam = new Html5Qrcode('camReader', { formatsToSupport:[F.EAN_13,F.EAN_8,F.CODE_128,F.CODE_39,F.UPC_A,F.UPC_E,F.ITF,F.QR_CODE,F.DATA_MATRIX], experimentalFeatures:{ useBarCodeDetectorIfSupported:true }, verbose:false });
+    let lastCode='', lastAt=0;
+    await S.cam.start({ facingMode:'environment' }, { fps:12, qrbox:(w,h)=>({ width:Math.floor(Math.min(w*0.8,320)), height:Math.floor(Math.min(h*0.7,240)) }), aspectRatio:1.333 },
+      code => {
+        const now = Date.now();
+        if (modalOpen()) return;
+        if (code===lastCode && now-lastAt<3000) return;
+        const o = resolveScan(code).o;
+        if (o && S.current===o.k && now-lastAt<6000) return;
+        lastCode=code; lastAt=now;
+        handleScan(code,'camera');
+      }, () => {});
+  }catch(e){
+    stopCamera();
+    toast('Camera unavailable: '+esc(e.message||e)+'. Allow camera permission, or use the handheld scanner.','bad',6000);
+  }
+}
+function stopCamera(){
+  const c = S.cam; S.cam = null;
+  const box = $('#camBox'); if (box) box.classList.add('hidden');
+  const b = $('#btnCam'); if (b) b.classList.remove('on');
+  if (c){ try{ c.stop().then(()=>c.clear()).catch(()=>{}); }catch(e){} }
+}
+
+
+/* =====================================================================
+   USER — MY LIST (search)
+   ===================================================================== */
+function renderSearchView(){
+  const main = $('#main');
+  if (!main.querySelector('#searchView')){
+    main.innerHTML = `<div id="searchView">
+      <div id="stripBox"></div>
+      <div style="position:relative"><span class="scanicon" style="top:14px">${I.search}</span>
+      <input id="sq" class="input" style="padding-left:46px;height:50px" placeholder="Search my ${esc(CAT_NAME[S.cat]||'')} items" autocomplete="off"></div>
+      <div class="chips" id="sf"></div>
+      <div class="card" style="overflow:hidden"><div class="list" id="slist"></div></div>
+      <div style="text-align:center;margin-top:12px" id="smore"></div></div>`;
+    const sq = $('#sq'); sq.value = S.searchQ;
+    let t; sq.addEventListener('input', () => { clearTimeout(t); t=setTimeout(()=>{ S.searchQ=sq.value; S.searchN=60; drawSearch(); },120); });
+  }
+  $('#stripBox').innerHTML = statsStrip();
+  drawSearch();
+}
+function drawSearch(){
+  const list = scopeMats(); const t = totalsOf(list);
+  const fl = [['open','To find',t.none+t.part],['none','Not taken',t.none],['part','Partial',t.part],['full','Done',t.full],['all','All',t.items]];
+  $('#sf').innerHTML = fl.map(([k,l,c]) => `<button class="chip ${S.searchF===k?'on':''}" data-f="${k}">${l} · ${fmtN(c)}</button>`).join('');
+  $('#sf').querySelectorAll('.chip').forEach(b => b.onclick = () => { S.searchF=b.dataset.f; S.searchN=60; drawSearch(); });
+  const res = searchList(list, S.searchQ, S.searchF);
+  const shown = res.slice(0, S.searchN);
+  $('#slist').innerHTML = shown.length ? shown.map(o => `
+    <div class="li" data-k="${esc(o.k)}">
+      <div class="grow"><div class="s">${esc(o.m)} · ${esc(o.bc)}</div><div class="t">${esc(o.d)}</div>
+        <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="status ${stClass(o.status)}">${stShort(o.status)}</span>${o.takers.length?`<span class="muted" style="font-size:12px">${o.takers.map(t=>esc(t.user)+' '+t.qty).join(' · ')}</span>`:''}</div></div>
+      <div class="r"><b>${o.rem}</b><span>of ${o.os} left</span><div class="muted" style="font-size:11.5px;margin-top:2px">On hand ${o.oh}</div></div>
+    </div>`).join('') : '<div class="empty">No items here.</div>';
+  $('#slist').querySelectorAll('.li').forEach(li => li.onclick = () => { const o=S.byKey.get(li.dataset.k); if(o){ logScanEvt(o.m,o); openMaterial(o); } });
+  $('#smore').innerHTML = res.length>S.searchN ? `<button class="btn ghost">Show more (${fmtN(res.length-S.searchN)} more)</button>` : `<span class="muted" style="font-size:13px">${fmtN(res.length)} items · ${esc(S.task)} · ${esc(CAT_NAME[S.cat]||'')}</span>`;
+  const mb = $('#smore .btn'); if (mb) mb.onclick = () => { S.searchN += 100; drawSearch(); };
+}
+
+/* =====================================================================
+   USER — HISTORY
+   ===================================================================== */
+async function loadMyScans(){
+  try{
+    const rows = await api('getScanLog', S.token, true, 300);
+    S.myScans = rows.map(r => [r[0], r[1], r[4], r[5], r[6], r[7]]);
+    store.set('scans_'+S.user, S.myScans);
+    if (S.view==='history') renderHistoryView();
+  }catch(e){}
+}
+function renderHistoryView(){
+  const mine = S.picks.filter(p => p.user===S.user && p.task===S.task);
+  const qty = mine.reduce((a,p)=>a+p.qty,0);
+  const todayQ = mine.filter(p=>isToday(p.ts)).reduce((a,p)=>a+p.qty,0);
+  let body;
+  if (S.histSeg==='picks'){
+    body = mine.length ? mine.map(p => `
+      <div class="li" data-k="${esc(p.o?p.o.k:'')}">
+        <div class="grow"><div class="s">${esc(p.m)} · ${fmtDT(p.ts)}${p.eb?' · edited by '+esc(p.eb):''}</div><div class="t">${esc(p.o?p.o.d:'')}</div>
+        <div style="margin-top:6px"><span class="status ${stClass(p.o&&p.o.status)}">${stShort(p.o&&p.o.status)}</span></div></div>
+        <div class="r"><b>${p.qty}</b><span>pc picked</span><div style="margin-top:6px"><button class="btn xs ghost" data-edit="${esc(p.id)}">${I.edit}Edit</button></div></div>
+      </div>`).join('') : '<div class="empty"><h3>No picks yet</h3>Items you pick in '+esc(TASK_LABEL[S.task])+' appear here.</div>';
+  } else {
+    const scans = S.myScans.filter(r => !r[1] || r[1]===S.task);
+    body = scans.length ? scans.map(r => `
+      <div class="li" data-k="${esc(r[3]?keyOf(S.task,r[3]):'')}">
+        <div class="grow"><div class="s">${fmtDT(r[0])} · scanned ${esc(r[2])}</div><div class="t">${esc(r[4]||'Unknown item')}</div></div>
+        <div class="r"><span class="status ${/fully/i.test(r[5])?'full':/partial/i.test(r[5])?'part':''}">${esc(r[5])}</span></div>
+      </div>`).join('') : '<div class="empty"><h3>No checks yet</h3>Every item you scan or search is listed here.</div>';
+  }
+  $('#main').innerHTML = `
+    <div class="strip" style="grid-template-columns:repeat(3,1fr)">
+      <div class="s"><b>${mine.length}</b><span>My picks</span></div>
+      <div class="s"><b>${fmtN(qty)}</b><span>Total pcs</span></div>
+      <div class="s"><b>${fmtN(todayQ)}</b><span>Pcs today</span></div></div>
+    <div class="row" style="margin:6px 0 12px"><div class="seg"><button class="${S.histSeg==='picks'?'on':''}" data-s="picks">Picked</button><button class="${S.histSeg==='scans'?'on':''}" data-s="scans">Checked</button></div><span class="muted" style="font-size:12.5px">${esc(TASK_LABEL[S.task])}</span></div>
+    <div class="card" style="overflow:hidden"><div class="list">${body}</div></div>`;
+  $('#main').querySelectorAll('.seg button').forEach(b => b.onclick = () => { S.histSeg=b.dataset.s; renderHistoryView(); });
+  $('#main').querySelectorAll('[data-edit]').forEach(b => b.onclick = e => { e.stopPropagation(); editPickModal(b.dataset.edit); });
+  $('#main').querySelectorAll('.li[data-k]').forEach(li => li.onclick = () => { const o=S.byKey.get(li.dataset.k); if(o && inScope(o)) openMaterial(o); });
+}
+
+/* ---------------- Edit pick (user own / admin any) ---------------- */
+function editPickModal(id){
+  const p = S.picks.find(x => x.id===id);
+  if (!p){ toast('Pick not found','bad'); return; }
+  const o = p.o; const max = o ? p.qty + o.rem : p.qty;
+  const ov = openModal(`
+    <div class="modal-h"><div class="micon">${I.edit}</div><div><h3>Edit picked quantity</h3><div class="muted" style="font-size:13px">${esc(p.user)} · ${fmtDT(p.ts)}</div></div></div>
+    <div class="modal-b">
+      <div class="mono muted" style="font-size:12px">MATERIAL ${esc(p.m)}</div>
+      <div style="font-weight:700;margin:2px 0 14px">${esc(o?o.d:'')}</div>
+      <label class="lbl">Quantity (max ${max})</label>
+      <input class="input qtyinput" id="epQty" type="number" inputmode="numeric" min="0" max="${max}" value="${p.qty}" autofocus>
+      <div class="muted" style="font-size:12.5px;margin-top:8px">Set to 0 or use Remove to delete this pick. Required for material: ${o?o.os:'—'} pc.</div>
+    </div>
+    <div class="modal-f"><button class="btn ghost danger" id="epDel">${I.trash}Remove</button><div class="grow"></div><button class="btn ghost" id="epCancel">Cancel</button><button class="btn" id="epSave">Save</button></div>`);
+  const save = async (val) => {
+    const q = parseInt(val,10);
+    if (!(q>=0)) { toast('Enter a valid quantity','bad'); return; }
+    if (q>max){ toast('Maximum allowed is '+max,'bad'); return; }
+    loading(true,'Saving…');
+    try{ const r = await api('editPick', S.token, id, q); closeModal(); applyData(r.data,false); toast(q===0?'Pick removed':'Quantity updated','ok'); sfx.ok(); }
+    catch(e){ toast(esc(e.message),'bad',4000); }
+    finally{ loading(false); }
+  };
+  ov.querySelector('#epCancel').onclick = closeModal;
+  ov.querySelector('#epSave').onclick = () => save(ov.querySelector('#epQty').value);
+  ov.querySelector('#epQty').addEventListener('keydown', e => { if (e.key==='Enter') save(e.target.value); });
+  ov.querySelector('#epDel').onclick = async () => { if (await confirmBox('Remove this pick?', `${p.qty} pc of material ${esc(p.m)} will be returned to "remaining".`, 'Remove', true)) save(0); };
+}
+
+
+/* =====================================================================
+   ADMIN
+   ===================================================================== */
+function renderAdmin(){
+  const v = S.adm.view;
+  if (v==='dash') admDash();
+  else if (v==='materials') admMaterials();
+  else if (v==='picks') admPicks();
+  else if (v==='scans') admScans();
+  else if (v==='users') admUsers();
+  else if (v==='upload') admUpload();
+  else if (v==='export') admExport();
+  else admSettings();
+}
+function userStats(){
+  const m = {};
+  pickersList().forEach(u => m[u[0]] = { user:u[0], cat:u[3], name:u[1], active:u[4], picks:0, qty:0, core:0, backup:0, mats:new Set(), last:0, today:0 });
+  S.picks.forEach(p => {
+    const s = m[p.user] = m[p.user] || { user:p.user, cat:'', name:'', active:true, picks:0, qty:0, core:0, backup:0, mats:new Set(), last:0, today:0 };
+    s.picks++; s.qty += p.qty; s[p.task==='Core'?'core':'backup'] += p.qty; s.mats.add(p.task+p.m); s.last = Math.max(s.last, p.ts); if (isToday(p.ts)) s.today += p.qty;
+  });
+  return Object.values(m).sort((a,b) => (CATS.indexOf(a.cat)-CATS.indexOf(b.cat)) || a.user.localeCompare(b.user));
+}
+function taskPanel(task){
+  const list = S.mats.filter(o => o.task===task); const t = totalsOf(list);
+  const rows = CATS.concat(list.some(o=>o.cat==='OTH')?['OTH']:[]).map(c => { const x = totalsOf(list.filter(o=>o.cat===c)); return `
+    <tr><td><span class="cattag ${c}">${c}</span> ${CAT_NAME[c]}</td><td class="n">${fmtN(x.items)}</td><td class="n">${fmtN(x.os)}</td><td class="n"><b>${fmtN(x.taken)}</b></td><td class="n">${fmtN(x.rem)}</td>
+    <td style="min-width:110px"><div class="row" style="gap:8px"><div class="bar grow ${x.pct>=100?'ok':''}" style="height:6px"><i style="width:${Math.min(100,x.pct)}%"></i></div><span style="font-size:12px;width:40px;text-align:right">${x.pct}%</span></div></td></tr>`; }).join('');
+  return `<div class="card taskpanel ${task}">
+    <div class="tp-head"><div><div class="tp-label">${task==='Core'?'TASK 1 · MAIN':'TASK 2'}</div><div class="tp-title">${task}</div></div>
+      <div style="text-align:right"><div class="tp-pct">${t.pct}%</div><div class="muted" style="font-size:12px">scanned</div></div></div>
+    <div class="bar ${t.pct>=100?'ok':''}" style="margin:0 18px"><i style="width:${Math.min(100,t.pct)}%"></i></div>
+    <div class="tp-kpis">
+      <div><span>Materials</span><b>${fmtN(t.items)}</b></div>
+      <div><span>Qty to scan</span><b>${fmtN(t.os)}</b></div>
+      <div><span>Scanned qty</span><b>${fmtN(t.taken)}</b></div>
+      <div><span>Remaining qty</span><b>${fmtN(t.rem)}</b></div>
+      <div><span>Fully taken</span><b style="color:var(--ok)">${fmtN(t.full)}</b></div>
+      <div><span>Partial</span><b style="color:var(--warn)">${fmtN(t.part)}</b></div>
+      <div><span>Not taken</span><b>${fmtN(t.none)}</b></div>
+      <div><span>Items left</span><b>${fmtN(t.none+t.part)}</b></div>
+    </div>
+    <div class="tablewrap" style="border:0;border-top:1px solid var(--line);border-radius:0 0 var(--r) var(--r)"><table><thead><tr><th>Category</th><th class="n">Items</th><th class="n">Qty</th><th class="n">Scanned</th><th class="n">Left</th><th>Progress</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </div>`;
+}
+function admDash(){
+  const d = S.data || {};
+  const all = totalsOf(S.mats);
+  const us = userStats();
+  const recent = S.picks.slice(0,15);
+  $('#main').innerHTML = `
+    <div class="row" style="margin-bottom:14px;flex-wrap:wrap">
+      <div class="grow"><div style="font-size:22px;font-weight:800;letter-spacing:-.02em">Pharmacy ${esc(d.pharmacy||'—')}</div>
+      <div class="muted" style="font-size:13px">${d.fileName?esc(d.fileName)+' · ':''}uploaded ${d.uploadedAt?fmtDT(d.uploadedAt):'—'}${d.uploadedBy?' by '+esc(d.uploadedBy):''}</div></div>
+      <button class="btn ghost sm" id="dRef">${I.refresh}Refresh</button>
+      <button class="btn sm" id="dExp">${I.down}Download report</button>
+    </div>
+    <div class="grid2eq">${taskPanel('Core')}${taskPanel('Backup')}</div>
+    <div class="card totalcard">
+      <div class="row" style="flex-wrap:wrap;gap:6px 14px"><div class="grow"><div class="tp-label">TOTAL · CORE + BACKUP</div><div style="font-size:26px;font-weight:800;letter-spacing:-.03em">${all.pct}% scanned</div></div>
+      <div class="bar grow ${all.pct>=100?'ok':''}" style="min-width:180px"><i style="width:${Math.min(100,all.pct)}%"></i></div></div>
+      <div class="tp-kpis" style="padding:14px 0 0">
+        <div><span>Materials</span><b>${fmtN(all.items)}</b></div><div><span>Qty to scan</span><b>${fmtN(all.os)}</b></div>
+        <div><span>Scanned qty</span><b>${fmtN(all.taken)}</b></div><div><span>Remaining qty</span><b>${fmtN(all.rem)}</b></div>
+        <div><span>Fully taken</span><b style="color:var(--ok)">${fmtN(all.full)}</b></div><div><span>Partial</span><b style="color:var(--warn)">${fmtN(all.part)}</b></div>
+        <div><span>Not taken</span><b>${fmtN(all.none)}</b></div><div><span>Active today</span><b>${us.filter(u=>u.today>0).length} / ${pickersList().length}</b></div>
+      </div>
+    </div>
+    <div class="grid2" style="margin-top:14px">
+      <div><div class="section-title" style="margin-top:6px">Picker performance</div>
+        <div class="tablewrap"><table><thead><tr><th>User</th><th>Cat.</th><th class="n">Core qty</th><th class="n">Backup qty</th><th class="n">Total</th><th class="n">Today</th><th>Last activity</th></tr></thead>
+        <tbody>${us.map(u=>`<tr style="cursor:pointer" data-u="${esc(u.user)}"><td><b>${esc(u.user)}</b>${u.active===false?' <span class="muted">(off)</span>':''}</td><td><span class="cattag ${u.cat}">${esc(u.cat)}</span></td><td class="n">${fmtN(u.core)}</td><td class="n">${fmtN(u.backup)}</td><td class="n"><b>${fmtN(u.qty)}</b></td><td class="n">${fmtN(u.today)}</td><td class="muted">${u.last?ago(u.last):'—'}</td></tr>`).join('')}</tbody></table></div></div>
+      <div><div class="section-title" style="margin-top:6px">Live activity</div>
+        <div class="card pad feed">${recent.length?recent.map(p=>`<div class="fi"><div class="avatar" style="width:30px;height:30px;font-size:9px">${esc(p.user.replace(/-0*/,''))}</div><div class="grow"><b>${esc(p.user)}</b> picked <b>${p.qty} pc</b> · <span class="tasktag ${p.task}">${p.task}</span> <span class="muted">${esc(p.m)}</span><div style="font-size:12.5px">${esc(p.o?p.o.d:'')}</div></div><span class="muted" style="font-size:12px;white-space:nowrap">${ago(p.ts)}</span></div>`).join(''):'<div class="muted">No picks yet.</div>'}</div></div>
+    </div>`;
+  $('#dRef').onclick = async () => { loading(true,'Refreshing…'); try{ await refresh(false, true); }finally{ loading(false); } };
+  $('#dExp').onclick = () => exportFull();
+  $('#main').querySelectorAll('tr[data-u]').forEach(tr => tr.onclick = () => { S.adm.pu = tr.dataset.u; S.adm.pp=0; S.adm.view='picks'; rerender(); });
+  $('#main').querySelectorAll('.taskpanel').forEach(c => c.ondblclick = () => { S.adm.mt = c.classList.contains('Backup')?'Backup':'Core'; S.adm.view='materials'; rerender(); });
+}
+
+function pager(total, page, key){
+  const pages = Math.max(1, Math.ceil(total/PAGE));
+  return `<div class="pager"><span>${fmtN(total)} rows · page ${page+1} of ${pages}</span>
+    <span class="row"><button class="btn xs ghost" data-pg="${key}" data-d="-1" ${page<=0?'disabled':''}>‹ Prev</button><button class="btn xs ghost" data-pg="${key}" data-d="1" ${page>=pages-1?'disabled':''}>Next ›</button></span></div>`;
+}
+function wirePager(fn){
+  $('#main').querySelectorAll('[data-pg]').forEach(b => b.onclick = () => { S.adm[b.dataset.pg] += Number(b.dataset.d); fn(); window.scrollTo(0,0); });
+}
+function keepFocus(id, fn){
+  const el = document.getElementById(id); const pos = el ? el.selectionStart : null; const had = document.activeElement===el;
+  fn();
+  const n = document.getElementById(id); if (n && had){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} }
+}
+
+
+/* ---------- Admin: Materials (Core and Backup shown separately) ---------- */
+function admMatFiltered(){
+  const A = S.adm;
+  let res = searchList(S.mats.filter(o => o.task===A.mt && (A.mc==='all' || o.cat===A.mc)), A.mq, A.mf);
+  if (A.mu!=='all') res = res.filter(o => o.takers.some(t => t.user===A.mu));
+  return res;
+}
+function admMaterials(){
+  const A = S.adm;
+  const res = admMatFiltered();
+  const pages = Math.max(1, Math.ceil(res.length/PAGE)); if (A.mp>=pages) A.mp = pages-1;
+  const rows = res.slice(A.mp*PAGE, A.mp*PAGE+PAGE);
+  const tl = totalsOf(S.mats.filter(o => o.task===A.mt));
+  const tc = t => totalsOf(S.mats.filter(o => o.task===t));
+  keepFocus('amq', () => {
+  $('#main').innerHTML = `
+    <div class="tasktabs">${TASKS.map(t => { const x = tc(t); return `<button class="tasktab ${A.mt===t?'on':''} ${t}" data-mt="${t}"><span class="tp-label">${t==='Core'?'TASK 1 · MAIN':'TASK 2'}</span><b>${t}</b><span class="muted" style="font-size:12.5px">${fmtN(x.items)} items · ${x.pct}% scanned · ${fmtN(x.rem)} pc left</span></button>`; }).join('')}</div>
+    <div class="toolbar">
+      <input class="input search" id="amq" placeholder="Search ${A.mt} by material, barcode, description" value="${esc(A.mq)}">
+      <select class="input" id="amc"><option value="all">All categories</option>${CATS.map(c=>`<option value="${c}" ${A.mc===c?'selected':''}>${c} · ${CAT_NAME[c]}</option>`).join('')}</select>
+      <select class="input" id="amf">
+        ${[['all','All status ('+tl.items+')'],['open','Remaining ('+(tl.none+tl.part)+')'],['none','Not taken ('+tl.none+')'],['part','Partially taken ('+tl.part+')'],['full','Fully taken ('+tl.full+')']].map(([k,l])=>`<option value="${k}" ${A.mf===k?'selected':''}>${l}</option>`).join('')}
+      </select>
+      <select class="input" id="amu"><option value="all">All users</option>${pickersList().map(u=>`<option ${A.mu===u[0]?'selected':''}>${u[0]}</option>`).join('')}</select>
+      <button class="btn sm ghost" id="amExp">${I.down}Export view</button>
+      <button class="btn sm" id="amAdd">${I.plus}Add to ${A.mt}</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Material</th><th>Cat.</th><th>Description</th><th>Barcode</th><th class="n">On hand</th><th class="n">Overstock</th><th class="n">Picked</th><th class="n">Remaining</th><th>Status</th><th>Taken by</th><th></th></tr></thead>
+    <tbody>${rows.map(o=>`<tr><td class="mono">${esc(o.m)}</td><td><span class="cattag ${o.cat}">${o.cat}</span></td><td class="desc">${esc(o.d)}</td><td class="mono muted">${esc(o.bc)}</td><td class="n">${o.oh}</td><td class="n"><b>${o.os}</b></td><td class="n">${o.taken}</td><td class="n"><b>${o.rem}</b></td><td><span class="status ${stClass(o.status)}">${stShort(o.status)}</span></td><td style="font-size:12.5px">${o.takers.map(t=>esc(t.user)+' ('+t.qty+')').join(', ')||'<span class="muted">—</span>'}</td><td><button class="btn xs ghost" data-e="${esc(o.k)}">${I.edit}Edit</button></td></tr>`).join('') || '<tr><td colspan="11" class="muted" style="text-align:center;padding:30px">No materials</td></tr>'}</tbody></table></div>
+    ${pager(res.length, A.mp, 'mp')}`;
+  });
+  let tm; $('#amq').oninput = e => { clearTimeout(tm); tm=setTimeout(()=>{ A.mq=e.target.value; A.mp=0; admMaterials(); },200); };
+  $('#amf').onchange = e => { A.mf=e.target.value; A.mp=0; admMaterials(); };
+  $('#amc').onchange = e => { A.mc=e.target.value; A.mp=0; admMaterials(); };
+  $('#amu').onchange = e => { A.mu=e.target.value; A.mp=0; admMaterials(); };
+  $('#main').querySelectorAll('[data-mt]').forEach(b => b.onclick = () => { A.mt=b.dataset.mt; A.mp=0; admMaterials(); });
+  $('#amAdd').onclick = () => admMatModal(null);
+  $('#amExp').onclick = () => exportMaterials(admMatFiltered(), A.mt+'_View');
+  $('#main').querySelectorAll('[data-e]').forEach(b => b.onclick = () => admMatModal(b.dataset.e));
+  wirePager(admMaterials);
+}
+function admMatModal(k){
+  const o = k ? S.byKey.get(k) : null;
+  const task = o ? o.task : S.adm.mt;
+  const picks = o ? o.picks.slice().reverse() : [];
+  const ov = openModal(`
+    <div class="modal-h"><div class="micon">${o?I.edit:I.plus}</div><div class="grow"><h3>${o?'Edit material':'Add material'} · ${esc(task)}</h3>${o?`<div class="muted" style="font-size:13px">${esc(o.m)} · <span class="cattag ${o.cat}">${o.cat}</span> <span class="status ${stClass(o.status)}">${stShort(o.status)}</span></div>`:'<div class="muted" style="font-size:13px">Category is set automatically from the first digit (1 MED · 2 COS · 3 MIL · 4 DIP)</div>'}</div></div>
+    <div class="modal-b">
+      <div class="formgrid">
+        <div><label class="lbl">Material number</label><input class="input" id="fm" value="${esc(o?o.m:'')}" ${o?'disabled':''}></div>
+        <div><label class="lbl">Barcode</label><input class="input" id="fb" value="${esc(o?o.bc:'')}"></div>
+        <div class="full"><label class="lbl">Description</label><input class="input" id="fd" value="${esc(o?o.d:'')}"></div>
+        <div><label class="lbl">On hand stock</label><input class="input" id="fo" type="number" value="${o?o.oh:''}"></div>
+        <div><label class="lbl">Overstock qty (required)</label><input class="input" id="fs" type="number" min="1" value="${o?o.os:''}"></div>
+      </div>
+      ${o?`<div class="section-title">Picks for this material (${picks.length})</div>
+      <div class="tablewrap"><table><thead><tr><th>User</th><th>Time</th><th class="n">Qty</th><th></th></tr></thead><tbody>
+      ${picks.map(p=>`<tr><td><b>${esc(p.user)}</b></td><td class="muted">${fmtDT(p.ts)}${p.eb?' · edited':''}</td><td class="n"><input class="input" style="height:34px;width:80px;text-align:right" type="number" min="0" value="${p.qty}" data-pq="${esc(p.id)}"></td><td><button class="btn xs ghost" data-ps="${esc(p.id)}">Save</button> <button class="btn xs ghost danger" data-pd="${esc(p.id)}">${I.trash}</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted" style="text-align:center">No picks yet</td></tr>'}
+      </tbody></table></div>`:''}
+    </div>
+    <div class="modal-f">${o?`<button class="btn ghost danger" id="fDel">${I.trash}Delete</button>`:''}<div class="grow"></div><button class="btn ghost" id="fCancel">Cancel</button><button class="btn" id="fSave">${o?'Save changes':'Add material'}</button></div>`, { wide:true });
+  ov.querySelector('#fCancel').onclick = closeModal;
+  ov.querySelector('#fSave').onclick = async () => {
+    const f = { material:ov.querySelector('#fm').value.trim(), barcode:ov.querySelector('#fb').value.trim(), desc:ov.querySelector('#fd').value.trim(), onHand:ov.querySelector('#fo').value, overstock:ov.querySelector('#fs').value };
+    if (!f.material || !f.desc || !(Number(f.overstock)>0)){ toast('Material, description and overstock qty are required','bad'); return; }
+    loading(true,'Saving…');
+    try{ const r = o ? await api('adminUpdateMaterial', S.token, task, o.m, f) : await api('adminAddMaterial', S.token, task, f); closeModal(); applyData(r.data,false); toast(o?'Material updated':'Material added to '+task,'ok'); }
+    catch(e){ toast(esc(e.message),'bad',5000); } finally{ loading(false); }
+  };
+  if (o){
+    ov.querySelector('#fDel').onclick = async () => {
+      if (!await confirmBox('Delete material '+esc(o.m)+' from '+task+'?', 'This removes the material and its '+o.picks.length+' pick(s). This cannot be undone.', 'Delete', true)) return;
+      loading(true,'Deleting…');
+      try{ const r = await api('adminDeleteMaterial', S.token, task, o.m); applyData(r.data,false); toast('Material deleted','ok'); }
+      catch(e){ toast(esc(e.message),'bad',5000); } finally{ loading(false); }
+    };
+    ov.querySelectorAll('[data-ps]').forEach(b => b.onclick = async () => {
+      const q = ov.querySelector(`[data-pq="${b.dataset.ps}"]`).value;
+      loading(true,'Saving…');
+      try{ const r = await api('editPick', S.token, b.dataset.ps, Number(q)); applyData(r.data,false); toast('Pick updated','ok'); admMatModal(o.k); }
+      catch(e){ toast(esc(e.message),'bad',5000); } finally{ loading(false); }
+    });
+    ov.querySelectorAll('[data-pd]').forEach(b => b.onclick = async () => {
+      loading(true,'Removing…');
+      try{ const r = await api('deletePick', S.token, b.dataset.pd); applyData(r.data,false); toast('Pick removed','ok'); admMatModal(o.k); }
+      catch(e){ toast(esc(e.message),'bad',5000); } finally{ loading(false); }
+    });
+  }
+}
+
+/* ---------- Admin: Pick log ---------- */
+function admPickFiltered(){
+  const A = S.adm; const q = A.pq.trim().toLowerCase();
+  return S.picks.filter(p => (A.pu==='all'||p.user===A.pu) && (A.pt==='all'||p.task===A.pt) && (A.pc==='all'||(p.o?p.o.cat:catOf(p.m))===A.pc) &&
+    (!q || (p.m+' '+(p.o?p.o.d+' '+p.o.bc:'')+' '+p.user).toLowerCase().includes(q)));
+}
+function admPicks(){
+  const A = S.adm; const res = admPickFiltered();
+  const pages = Math.max(1, Math.ceil(res.length/PAGE)); if (A.pp>=pages) A.pp = pages-1;
+  const rows = res.slice(A.pp*PAGE, A.pp*PAGE+PAGE);
+  const tq = res.reduce((a,p)=>a+p.qty,0);
+  keepFocus('apq', () => {
+  $('#main').innerHTML = `
+    <div class="toolbar">
+      <input class="input search" id="apq" placeholder="Search material, description, user" value="${esc(A.pq)}">
+      <select class="input" id="apt"><option value="all">Core + Backup</option>${TASKS.map(t=>`<option ${A.pt===t?'selected':''}>${t}</option>`).join('')}</select>
+      <select class="input" id="apc"><option value="all">All categories</option>${CATS.map(c=>`<option value="${c}" ${A.pc===c?'selected':''}>${c}</option>`).join('')}</select>
+      <select class="input" id="apu"><option value="all">All users</option>${pickersList().map(u=>`<option ${A.pu===u[0]?'selected':''}>${u[0]}</option>`).join('')}</select>
+      <span class="pill">${fmtN(res.length)} picks · ${fmtN(tq)} pc</span>
+      <button class="btn sm ghost" id="apExp">${I.down}Export</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Time</th><th>Task</th><th>User</th><th>Material</th><th>Cat.</th><th>Description</th><th class="n">Qty</th><th>Material status</th><th>Edited</th><th></th></tr></thead>
+    <tbody>${rows.map(p=>`<tr><td style="white-space:nowrap">${fmtDT(p.ts)}</td><td><span class="tasktag ${p.task}">${p.task}</span></td><td><b>${esc(p.user)}</b></td><td class="mono">${esc(p.m)}</td><td><span class="cattag ${p.o?p.o.cat:catOf(p.m)}">${p.o?p.o.cat:catOf(p.m)}</span></td><td class="desc">${esc(p.o?p.o.d:'')}</td><td class="n"><b>${p.qty}</b></td><td><span class="status ${stClass(p.o&&p.o.status)}">${stShort(p.o&&p.o.status)}</span></td><td class="muted" style="font-size:12px">${p.eb?esc(p.eb)+' · '+fmtDT(p.ea):'—'}</td><td><button class="btn xs ghost" data-ep="${esc(p.id)}">${I.edit}Edit</button></td></tr>`).join('') || '<tr><td colspan="10" class="muted" style="text-align:center;padding:30px">No picks</td></tr>'}</tbody></table></div>
+    ${pager(res.length, A.pp, 'pp')}`;
+  });
+  let tm; $('#apq').oninput = e => { clearTimeout(tm); tm=setTimeout(()=>{ A.pq=e.target.value; A.pp=0; admPicks(); },200); };
+  $('#apt').onchange = e => { A.pt=e.target.value; A.pp=0; admPicks(); };
+  $('#apc').onchange = e => { A.pc=e.target.value; A.pp=0; admPicks(); };
+  $('#apu').onchange = e => { A.pu=e.target.value; A.pp=0; admPicks(); };
+  $('#apExp').onclick = () => exportPicks(admPickFiltered(), 'Pick_Log');
+  $('#main').querySelectorAll('[data-ep]').forEach(b => b.onclick = () => editPickModal(b.dataset.ep));
+  wirePager(admPicks);
+}
+
+/* ---------- Admin: Scan log ---------- */
+async function loadAdmScans(){
+  try{ S.adm.scans = await api('getScanLog', S.token, false, 3000); if (S.adm.view==='scans') admScans(); }
+  catch(e){ toast(esc(e.message),'bad'); }
+}
+function admScans(){
+  const A = S.adm;
+  if (!A.scans){ $('#main').innerHTML = '<div class="empty"><div class="spin" style="margin:0 auto"></div></div>'; loadAdmScans(); return; }
+  const q = A.sq.trim().toLowerCase();
+  const res = A.scans.filter(r => (A.su==='all'||r[2]===A.su) && (!q || (r[4]+' '+r[5]+' '+r[6]).toLowerCase().includes(q)));
+  const pages = Math.max(1, Math.ceil(res.length/PAGE)); if (A.sp>=pages) A.sp = pages-1;
+  const rows = res.slice(A.sp*PAGE, A.sp*PAGE+PAGE);
+  keepFocus('asq', () => {
+  $('#main').innerHTML = `
+    <div class="toolbar">
+      <input class="input search" id="asq" placeholder="Search scanned code, material, description" value="${esc(A.sq)}">
+      <select class="input" id="asu"><option value="all">All users</option>${pickersList().map(u=>`<option ${A.su===u[0]?'selected':''}>${u[0]}</option>`).join('')}</select>
+      <button class="btn sm ghost" id="asRef">${I.refresh}Refresh</button>
+      <button class="btn sm ghost" id="asExp">${I.down}Export</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Time</th><th>Task</th><th>User</th><th>Cat.</th><th>Scanned</th><th>Material</th><th>Description</th><th>Result</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td style="white-space:nowrap">${fmtDT(r[0])}</td><td>${r[1]?`<span class="tasktag ${esc(r[1])}">${esc(r[1])}</span>`:''}</td><td><b>${esc(r[2])}</b></td><td>${esc(r[3])}</td><td class="mono">${esc(r[4])}</td><td class="mono">${esc(r[5])}</td><td class="desc">${esc(r[6])}</td><td><span class="status ${/fully/i.test(r[7])?'full':/partial/i.test(r[7])?'part':''}">${esc(r[7])}</span></td></tr>`).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:30px">No scans yet</td></tr>'}</tbody></table></div>
+    ${pager(res.length, A.sp, 'sp')}`;
+  });
+  let tm; $('#asq').oninput = e => { clearTimeout(tm); tm=setTimeout(()=>{ A.sq=e.target.value; A.sp=0; admScans(); },200); };
+  $('#asu').onchange = e => { A.su=e.target.value; A.sp=0; admScans(); };
+  $('#asRef').onclick = () => { A.scans=null; admScans(); };
+  $('#asExp').onclick = () => exportScans(res);
+  wirePager(admScans);
+}
+
+/* ---------- Admin: Users ---------- */
+async function admUsers(force){
+  const A = S.adm;
+  if (!A.userRows || force){
+    $('#main').innerHTML = '<div class="empty"><div class="spin" style="margin:0 auto"></div></div>';
+    try{ A.userRows = await api('adminGetUsers', S.token); } catch(e){ toast(esc(e.message),'bad'); return; }
+    if (A.view!=='users') return;
+  }
+  const us = userStats(); const byU = {}; us.forEach(x => byU[x.user] = x);
+  const rows = A.userRows.slice().sort((a,b) => (a[1]==='admin'?-1:b[1]==='admin'?1:0) || (CATS.indexOf(a[2])-CATS.indexOf(b[2])) || a[0].localeCompare(b[0]));
+  $('#main').innerHTML = `
+    <div class="row" style="margin-bottom:12px;flex-wrap:wrap">
+      <div class="grow"><div style="font-size:20px;font-weight:800;letter-spacing:-.02em">Accounts · ${esc(S.data.pharmacy)}</div>
+      <div class="muted" style="font-size:13px">${rows.filter(r=>r[1]==='user'&&r[4]).length} active pickers · 4 per category · picker password default <b>1234</b></div></div>
+      <button class="btn ghost sm" id="usRef">${I.refresh}Refresh</button>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Username</th><th>Role</th><th>Category</th><th>Display name</th><th class="n">Core qty</th><th class="n">Backup qty</th><th>Last activity</th><th>Status</th><th></th></tr></thead>
+    <tbody>${rows.map(r => { const st = byU[r[0]] || {core:0,backup:0,last:0}; return `<tr>
+      <td class="mono"><b>${esc(r[0])}</b></td><td>${r[1]==='admin'?'<span class="pill">Admin</span>':'Picker'}</td><td>${r[1]==='admin'?'<span class="muted">All</span>':`<span class="cattag ${r[2]}">${esc(r[2])}</span> ${esc(CAT_NAME[r[2]]||'')}`}</td><td>${esc(r[3])}</td>
+      <td class="n">${fmtN(st.core)}</td><td class="n">${fmtN(st.backup)}</td><td class="muted">${st.last?ago(st.last):'—'}</td>
+      <td>${r[4]?'<span class="status full">Active</span>':'<span class="status">Disabled</span>'}</td>
+      <td><button class="btn xs ghost" data-u="${esc(r[0])}">${I.edit}Edit</button></td></tr>`; }).join('')}</tbody></table></div>`;
+  $('#usRef').onclick = () => admUsers(true);
+  $('#main').querySelectorAll('[data-u]').forEach(b => b.onclick = () => userModal(rows.find(r => r[0]===b.dataset.u)));
+}
+function userModal(r){
+  if (!r) return;
+  const isAdm = r[1]==='admin';
+  const ov = openModal(`
+    <div class="modal-h"><div class="micon">${I.user}</div><div class="grow"><h3>${esc(r[0])}</h3><div class="muted" style="font-size:13px">${isAdm?'Administrator':'Picker · '+esc(CAT_NAME[r[2]]||r[2])}</div></div></div>
+    <div class="modal-b"><div class="formgrid">
+      <div class="full"><label class="lbl">Display name</label><input class="input" id="umName" value="${esc(r[3])}" maxlength="40"></div>
+      ${isAdm?'':`<div class="full"><label class="lbl">Category (which items this picker sees)</label><select class="input" id="umCat">${CATS.map(c=>`<option value="${c}" ${r[2]===c?'selected':''}>${c} · ${CAT_NAME[c]}</option>`).join('')}</select></div>`}
+      <div class="full"><label class="lbl">New password <span style="text-transform:none;font-weight:500">(leave empty to keep)</span></label><input class="input" id="umPw" type="text" inputmode="numeric" placeholder="e.g. 1234" autocomplete="off"></div>
+      <label class="row full" style="cursor:pointer;font-size:14px"><input type="checkbox" id="umAct" ${r[4]?'checked':''} ${r[0]===S.user?'disabled':''}> Account active (can sign in)</label>
+    </div></div>
+    <div class="modal-f"><button class="btn ghost" id="umCancel">Cancel</button><button class="btn" id="umSave">Save</button></div>`);
+  ov.querySelector('#umCancel').onclick = closeModal;
+  ov.querySelector('#umSave').onclick = async () => {
+    const f = { displayName: ov.querySelector('#umName').value.trim(), active: ov.querySelector('#umAct').checked };
+    const c = ov.querySelector('#umCat'); if (c) f.category = c.value;
+    const pw = ov.querySelector('#umPw').value.trim(); if (pw) f.password = pw;
+    if (pw && pw.length < 4){ toast('Password must be at least 4 characters','bad'); return; }
+    loading(true,'Saving…');
+    try{ const res = await api('adminUpdateUser', S.token, r[0], f); S.adm.userRows = res.users; closeModal(); applyData(res.data,false); admUsers(); toast(esc(r[0])+' updated','ok'); }
+    catch(e){ toast(esc(e.message),'bad',5000); } finally{ loading(false); }
+  };
+}
+
+/* ---------- Admin: Upload (one Excel with Core + Backup sheets) ---------- */
+function admUpload(){
+  const U = S.adm.upload; const d = S.data||{};
+  const tc = t => totalsOf(S.mats.filter(o=>o.task===t));
+  $('#main').innerHTML = `
+    <div class="grid2">
+      <div><div class="card pad">
+        <h3 style="margin:0 0 4px">Upload ${esc(d.pharmacy)} overstock file</h3>
+        <p class="muted" style="margin:0 0 16px;font-size:13.5px">One Excel file with two sheets: <b>Core</b> and <b>Backup</b>. Columns: Pharmacy, Material, Material Description, On hand Stock, Overstock, Remaining, Barcode. Only <b>${esc(d.pharmacy)}</b> files are accepted in this app.</p>
+        <label class="drop" id="drop" for="file">
+          <div style="display:flex;justify-content:center;margin-bottom:10px">${I.up.replace('class="i"','class="i" style="width:30px;height:30px"')}</div>
+          <div style="font-weight:700">Drop the Excel file here or click to choose</div>
+          <div class="muted" style="font-size:13px;margin-top:4px">.xlsx or .xls</div>
+        </label>
+        <input type="file" id="file" accept=".xlsx,.xls" class="hidden">
+        <div id="upPrev" style="margin-top:16px"></div>
+      </div></div>
+      <div><div class="card pad"><div class="section-title" style="margin-top:0">Currently active</div>
+        <dl class="kv"><dt>Pharmacy</dt><dd>${esc(d.pharmacy||'—')}</dd><dt>File</dt><dd>${esc(d.fileName||'—')}</dd><dt>Uploaded</dt><dd>${d.uploadedAt?fmtDT(d.uploadedAt):'—'}</dd><dt>By</dt><dd>${esc(d.uploadedBy||'—')}</dd>
+        <dt>Core</dt><dd>${fmtN(tc('Core').items)} items · ${fmtN(tc('Core').os)} pc</dd><dt>Backup</dt><dd>${fmtN(tc('Backup').items)} items · ${fmtN(tc('Backup').os)} pc</dd><dt>Picks</dt><dd>${fmtN(S.picks.length)}</dd></dl>
+        <p class="muted" style="font-size:12.5px;margin:14px 0 0">Tip: download the full report before uploading a new file. Previous picks are moved to the <b>Picks_Archive</b> tab.</p>
+      </div></div>
+    </div>`;
+  const drop = $('#drop'), file = $('#file');
+  ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) parseUpload(f); });
+  file.onchange = () => { if (file.files[0]) parseUpload(file.files[0]); };
+  if (U) drawUploadPreview();
+}
+function cellStr(v){
+  if (v===null || v===undefined) return '';
+  if (typeof v==='number') return Number.isInteger(v) ? v.toLocaleString('fullwide',{useGrouping:false}) : String(v);
+  return String(v).trim();
+}
+function parseSheetRows(ws){
+  const aoa = XLSX.utils.sheet_to_json(ws, { header:1, defval:'', raw:true });
+  let hi = -1;
+  for (let i=0;i<Math.min(15,aoa.length);i++){
+    const r = aoa[i].map(x=>String(x).toLowerCase());
+    if (r.some(x=>/material/.test(x)) && r.some(x=>/over\s*stock/.test(x))){ hi=i; break; }
+  }
+  if (hi<0) return null;
+  const H = aoa[hi].map(x=>String(x).toLowerCase().replace(/\s+/g,' ').trim());
+  const find = fn => H.findIndex(fn);
+  const c = {
+    ph: find(h=>/pharm|site|branch|plant|store/.test(h) && !/remain/.test(h)),
+    m:  find(h=>/material/.test(h) && !/desc/.test(h)),
+    d:  find(h=>/desc/.test(h) || /name/.test(h)),
+    oh: (()=>{ const a=find(h=>/on\s*hand/.test(h)); return a>=0?a:find(h=>/stock/.test(h)&&!/over/.test(h)); })(),
+    os: find(h=>/over\s*stock/.test(h)),
+    rm: find(h=>/remain/.test(h)),
+    bc: find(h=>/(bar)?code|qr|ean|gtin|upc/.test(h) && !/material/.test(h))
+  };
+  if (c.m<0 || c.os<0) return null;
+  const rows = []; let skipped = 0; const seen = new Set(); let dups = 0;
+  for (let i=hi+1;i<aoa.length;i++){
+    const r = aoa[i]; const m = cellStr(r[c.m]); if (!m) continue;
+    const os = Number(r[c.os]); if (!(os>0)){ skipped++; continue; }
+    if (seen.has(norm(m))){ dups++; continue; } seen.add(norm(m));
+    const oh = c.oh>=0 ? Number(r[c.oh])||0 : 0;
+    rows.push([ c.ph>=0 ? cellStr(r[c.ph]).toUpperCase() : '', m, c.d>=0?cellStr(r[c.d]):'', oh, Math.floor(os), c.rm>=0 && r[c.rm]!=='' ? Number(r[c.rm]) : oh-os, c.bc>=0 ? cellStr(r[c.bc]) : m ]);
+  }
+  return { rows, skipped, dups };
+}
+function parseUpload(f){
+  if (typeof XLSX==='undefined'){ toast('Excel library could not load','bad'); return; }
+  const rd = new FileReader();
+  rd.onload = e => {
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+      const names = wb.SheetNames;
+      const coreName = names.find(n => /core|main/i.test(n));
+      const backName = names.find(n => /back|base|bkp/i.test(n));
+      const out = { name:f.name, core:null, backup:null, coreSheet:coreName, backSheet:backName };
+      if (coreName) out.core = parseSheetRows(wb.Sheets[coreName]);
+      if (backName) out.backup = parseSheetRows(wb.Sheets[backName]);
+      if (!coreName && !backName){
+        const one = parseSheetRows(wb.Sheets[names[0]]);
+        if (!one) throw new Error('No sheet with Material and Overstock columns found.');
+        out.single = one; out.singleName = names[0]; out.singleTask = 'Core';
+      }
+      if ((coreName && !out.core) || (backName && !out.backup)) throw new Error('Could not read the '+(coreName && !out.core ? coreName : backName)+' sheet. It needs Material and Overstock columns.');
+      const all = [].concat(out.core?out.core.rows:[], out.backup?out.backup.rows:[], out.single?out.single.rows:[]);
+      const phs = {}; all.forEach(r => { if (r[0]) phs[r[0]] = (phs[r[0]]||0)+1; });
+      out.pharmacies = Object.keys(phs);
+      out.wrong = out.pharmacies.filter(p => p !== S.data.pharmacy);
+      S.adm.upload = out;
+      drawUploadPreview();
+    }catch(err){ toast(esc(err.message),'bad',6000); S.adm.upload=null; $('#upPrev').innerHTML=''; }
+  };
+  rd.readAsArrayBuffer(f);
+}
+function catCounts(rows){ const c = {}; rows.forEach(r => { const k = catOf(r[1]); c[k] = (c[k]||0)+1; }); return CATS.concat(c.OTH?['OTH']:[]).map(k => `<span class="cattag ${k}">${k}</span> ${fmtN(c[k]||0)}`).join(' &nbsp; '); }
+function drawUploadPreview(){
+  const U = S.adm.upload; if (!U) return;
+  const ph = S.data.pharmacy;
+  const block = (label, set) => set ? `<div class="card" style="box-shadow:none;padding:12px 14px;margin-top:10px">
+      <div class="row"><b class="grow">${label}</b><span class="pill">${fmtN(set.rows.length)} items · ${fmtN(set.rows.reduce((a,r)=>a+r[4],0))} pc</span></div>
+      <div style="font-size:12.5px;margin-top:8px">${catCounts(set.rows)}</div>
+      ${set.skipped||set.dups?`<div class="muted" style="font-size:12px;margin-top:6px">${set.skipped?set.skipped+' rows with 0 overstock skipped. ':''}${set.dups?set.dups+' duplicates removed.':''}</div>`:''}
+    </div>` : `<div class="card muted" style="box-shadow:none;padding:12px 14px;margin-top:10px">${label}: sheet not found in file — this list will be emptied.</div>`;
+  if (U.wrong.length){
+    $('#upPrev').innerHTML = `<div class="banner bad" style="margin:0">${I.x}<div><b>Wrong pharmacy.</b> This file is for <b>${esc(U.wrong.join(', '))}</b>, but this app is <b>${esc(ph)}</b>. Open the ${esc(U.wrong[0])} app to upload it.</div></div>`;
+    return;
+  }
+  $('#upPrev').innerHTML = `
+    <div class="card" style="box-shadow:none;padding:16px;background:var(--soft)">
+      <div class="row" style="flex-wrap:wrap"><div class="grow"><div style="font-weight:700">${esc(U.name)}</div><div class="muted" style="font-size:13px">Ready to upload</div></div><span class="pill dark">Pharmacy ${esc(ph)}</span></div>
+      ${U.single ? `<div style="margin-top:12px"><label class="lbl">This file has one sheet ("${esc(U.singleName)}"). Upload it as:</label>
+        <div class="seg"><button class="${U.singleTask==='Core'?'on':''}" data-st="Core">Task 1 · Core</button><button class="${U.singleTask==='Backup'?'on':''}" data-st="Backup">Task 2 · Backup</button></div>
+        <div class="muted" style="font-size:12px;margin-top:6px">The other task's list stays as it is.</div></div>` + block('Sheet '+U.singleName, U.single)
+        : block('Task 1 · Core ('+esc(U.coreSheet||'—')+')', U.core) + block('Task 2 · Backup ('+esc(U.backSheet||'—')+')', U.backup)}
+      <label class="row" style="margin-top:14px;font-size:14px;cursor:pointer"><input type="checkbox" id="upKeep"> Keep existing picks (only when re-uploading corrected quantities for the same day)</label>
+      <div class="banner warn" style="margin:14px 0 0">${I.warn}<div>This replaces the active list for all pickers of ${esc(ph)}. Current picks are archived unless you keep them.</div></div>
+      <div class="row" style="margin-top:14px"><button class="btn ghost" id="upCancel">Cancel</button><div class="grow"></div><button class="btn" id="upGo">${I.up}Upload</button></div>
+    </div>`;
+  $('#upPrev').querySelectorAll('[data-st]').forEach(b => b.onclick = () => { U.singleTask = b.dataset.st; drawUploadPreview(); });
+  $('#upCancel').onclick = () => { S.adm.upload=null; admUpload(); };
+  $('#upGo').onclick = async () => {
+    const keep = $('#upKeep').checked;
+    const payload = { fileName:U.name, keepPicks:keep };
+    if (U.single){ payload[U.singleTask==='Core'?'core':'backup'] = U.single.rows; payload.onlyTask = U.singleTask; }
+    else { payload.core = U.core ? U.core.rows : []; payload.backup = U.backup ? U.backup.rows : []; }
+    const n = (payload.core||[]).length + (payload.backup||[]).length;
+    if (!await confirmBox('Upload '+esc(ph)+' list?', `Core ${fmtN((payload.core||[]).length)} · Backup ${fmtN((payload.backup||[]).length)} items become the active lists for every picker.${keep?'':' Existing picks will be archived.'}`, 'Upload now')) return;
+    loading(true, 'Uploading '+fmtN(n)+' materials…');
+    try{
+      const r = await api('adminUploadData', S.token, payload);
+      S.adm.upload = null; applyData(r.data,false);
+      toast('Uploaded · Core '+fmtN(r.counts.Core)+' · Backup '+fmtN(r.counts.Backup),'ok',4000);
+      S.adm.view='dash'; rerender();
+    }catch(e){ toast(esc(e.message),'bad',6000); }
+    finally{ loading(false); }
+  };
+}
+
+/* ---------- Admin: Export ---------- */
+function admExport(){
+  const cards = [
+    ['full','Full report','Summary (Core, Backup, Total by category), both lists, remaining items, pick log, user summary and scan log.'],
+    ['core','Core — all items','Task 1 list with picked, remaining, status and who took it.'],
+    ['coreopen','Core — remaining','Core items not fully taken yet.'],
+    ['backup','Backup — all items','Task 2 list with picked, remaining, status and who took it.'],
+    ['backopen','Backup — remaining','Backup items not fully taken yet.'],
+    ['picks','Pick log','Every pick: task, user, item, qty, time.'],
+    ['users','User summary','Core and Backup quantity per picker.'],
+    ['scans','Scan log','Every scan / search by each picker.'],
+    ['archive','Archive','Picks from previous uploads.']
+  ];
+  $('#main').innerHTML = `<div class="exp">${cards.map(([k,h,p])=>`<div class="card"><h4>${h}</h4><p>${p}</p><button class="btn sm ${k==='full'?'':'ghost'}" data-x="${k}">${I.down}Download .xlsx</button></div>`).join('')}</div>`;
+  $('#main').querySelectorAll('[data-x]').forEach(b => b.onclick = async () => {
+    const k = b.dataset.x;
+    const T = t => S.mats.filter(o=>o.task===t);
+    if (k==='full') return exportFull();
+    if (k==='core') return exportMaterials(T('Core'), 'Core_All');
+    if (k==='coreopen') return exportMaterials(T('Core').filter(o=>o.status!==ST.FULL), 'Core_Remaining');
+    if (k==='backup') return exportMaterials(T('Backup'), 'Backup_All');
+    if (k==='backopen') return exportMaterials(T('Backup').filter(o=>o.status!==ST.FULL), 'Backup_Remaining');
+    if (k==='picks') return exportPicks(S.picks, 'Pick_Log');
+    if (k==='users') return writeBook([['User Summary', userSheet()]], 'User_Summary');
+    if (k==='scans'){ loading(true,'Preparing…'); try{ exportScans(await api('getScanLog', S.token, false, 20000)); }catch(e){ toast(esc(e.message),'bad'); } finally{ loading(false); } return; }
+    if (k==='archive'){ loading(true,'Preparing…'); try{ const a = await api('adminGetArchive', S.token);
+      writeBook([['Archive', [['Pick ID','Timestamp','Task','Material','Description','Category','Barcode','User','Qty','Edited By','Archived At'], ...a.map(r=>[r[0],xd(r[1]),r[2],xm(r[3]),r[4],r[5],r[6],r[7],r[8],r[9],xd(r[10])])]]], 'Picks_Archive'); }catch(e){ toast(esc(e.message),'bad'); } finally{ loading(false); } }
+  });
+}
+const xd = ms => ms ? new Date(ms) : '';
+const xm = m => /^\d{1,15}$/.test(m) ? Number(m) : m;
+function matSheet(list){
+  return [['Task','Pharmacy','Material','Category','Material Description','Barcode','On Hand Stock','Overstock Qty','Picked Qty','Remaining To Pick','Status','Taken By','Last Picked At'],
+    ...list.map(o => [o.task, S.data.pharmacy, xm(o.m), o.cat, o.d, o.bc, o.oh, o.os, o.taken, o.rem, o.status, o.takers.map(t=>t.user+' ('+t.qty+')').join(', '), xd(o.lastTs)])];
+}
+function pickSheet(list){
+  return [['Timestamp','Task','User','Pharmacy','Material','Category','Material Description','Barcode','Qty Picked','Material Status','Edited By','Edited At','Pick ID'],
+    ...list.map(p => [xd(p.ts), p.task, p.user, S.data.pharmacy, xm(p.m), p.o?p.o.cat:catOf(p.m), p.o?p.o.d:'', p.o?p.o.bc:'', p.qty, p.o?p.o.status:'', p.eb, xd(p.ea), p.id])];
+}
+function userSheet(){
+  return [['User','Category','Picks','Core Qty','Backup Qty','Total Qty','Qty Today','Last Activity'], ...userStats().map(u => [u.user, u.cat, u.picks, u.core, u.backup, u.qty, u.today, xd(u.last)])];
+}
+function scanSheet(list){
+  return [['Timestamp','Task','User','Category','Scanned / Searched','Material','Material Description','Result'], ...list.map(r => [xd(r[0]), r[1], r[2], r[3], r[4], xm(r[5]), r[6], r[7]])];
+}
+function exportMaterials(list, name){ writeBook([[name.replace(/_/g,' '), matSheet(list)]], name); }
+function exportPicks(list, name){ writeBook([['Pick Log', pickSheet(list)]], name); }
+function exportScans(list){ writeBook([['Scan Log', scanSheet(list)]], 'Scan_Log'); }
+async function exportFull(){
+  loading(true, 'Building report…');
+  let scans = [];
+  try{ scans = await api('getScanLog', S.token, false, 20000); }catch(e){}
+  const d = S.data; const T = t => S.mats.filter(o=>o.task===t);
+  const line = (label, list) => { const x = totalsOf(list); return [label, x.items, x.os, x.taken, x.rem, x.pct/100, x.full, x.part, x.none]; };
+  const summary = [
+    ['Overstock Report — Pharmacy ' + d.pharmacy], [],
+    ['Generated', new Date()], ['Generated by', S.user], ['Source file', d.fileName], ['Uploaded at', xd(d.uploadedAt)], [],
+    ['Section','Items','Qty to scan','Scanned qty','Remaining qty','Progress','Fully taken','Partially taken','Not taken'],
+    line('CORE (Task 1)', T('Core')), ...CATS.map(c => line('   Core · '+CAT_NAME[c], T('Core').filter(o=>o.cat===c))),
+    line('BACKUP (Task 2)', T('Backup')), ...CATS.map(c => line('   Backup · '+CAT_NAME[c], T('Backup').filter(o=>o.cat===c))),
+    line('TOTAL', S.mats)
+  ];
+  writeBook([
+    ['Summary', summary],
+    ['Core All', matSheet(T('Core'))], ['Core Remaining', matSheet(T('Core').filter(o=>o.status!==ST.FULL))],
+    ['Backup All', matSheet(T('Backup'))], ['Backup Remaining', matSheet(T('Backup').filter(o=>o.status!==ST.FULL))],
+    ['Pick Log', pickSheet(S.picks)], ['User Summary', userSheet()], ['Scan Log', scanSheet(scans)]
+  ], 'Overstock_Report');
+  loading(false);
+}
+function writeBook(sheets, name){
+  if (typeof XLSX==='undefined'){ toast('Excel library could not load','bad'); return; }
+  const wb = XLSX.utils.book_new();
+  sheets.forEach(([title, aoa]) => {
+    const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates:true, dateNF:'dd-mmm-yyyy hh:mm' });
+    const widths = (aoa[0]||[]).map((_,ci) => ({ wch: Math.min(60, Math.max(10, ...aoa.slice(0,300).map(r => String(r[ci] instanceof Date ? '00-000-0000 00:00' : (r[ci]??'')).length + 2))) }));
+    ws['!cols'] = widths;
+    if (aoa.length>1 && title!=='Summary') ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:aoa.length-1, c:(aoa[0].length-1)} }) };
+    XLSX.utils.book_append_sheet(wb, ws, title.slice(0,31));
+  });
+  const n = new Date();
+  const fname = `${S.data.pharmacy||'Overstock'}_${name}_${n.getFullYear()}-${pad2(n.getMonth()+1)}-${pad2(n.getDate())}_${pad2(n.getHours())}${pad2(n.getMinutes())}.xlsx`;
+  try{ XLSX.writeFile(wb, fname, { cellDates:true }); toast('Downloaded '+esc(fname),'ok'); }
+  catch(e){ toast('Download failed: '+esc(e.message),'bad'); }
+}
+
+
+/* ---------- Admin: Settings ---------- */
+async function admSettings(){
+  const d = S.data || {};
+  $('#main').innerHTML = `
+    <div class="grid2">
+      <div><div class="section-title" style="margin-top:0">Audit log</div>
+        <div class="tablewrap" id="auditBox" style="max-height:560px;overflow:auto"><div class="empty"><div class="spin" style="margin:0 auto"></div></div></div></div>
+      <div>
+        <div class="section-title" style="margin-top:0">Reset picks</div>
+        <div class="card pad">
+          <p class="muted" style="font-size:13px;margin:0 0 12px">Moves picks to Picks_Archive and sets items back to "Not taken". The material lists stay.</p>
+          <div class="row" style="flex-wrap:wrap"><button class="btn ghost danger sm" data-r="Core">${I.trash}Reset Core</button><button class="btn ghost danger sm" data-r="Backup">${I.trash}Reset Backup</button><button class="btn ghost danger sm" data-r="all">${I.trash}Reset both</button></div>
+        </div>
+        <div class="card pad" style="margin-top:12px">
+          <div style="font-weight:700">Google Sheet database</div>
+          <p class="muted" style="font-size:13px;margin:4px 0 12px">${esc(d.pharmacy)} has its own Google Sheet. Tabs: Users, Core, Backup, Picks, Scan_Log, Picks_Archive, Audit_Log, Config.</p>
+          <a class="btn sm ghost" href="${esc(d.sheetUrl||'#')}" target="_blank" rel="noopener">Open Google Sheet</a>
+        </div>
+      </div>
+    </div>`;
+  $('#main').querySelectorAll('[data-r]').forEach(b => b.onclick = async () => {
+    const t = b.dataset.r; const n = S.picks.filter(p => t==='all' || p.task===t).length;
+    if (!await confirmBox('Reset '+(t==='all'?'Core and Backup':t)+' picks?', `${fmtN(n)} picks will be archived and those items set back to "Not taken".`, 'Reset', true)) return;
+    loading(true,'Resetting…');
+    try{ const r = await api('adminResetPicks', S.token, t); applyData(r.data,false); toast(r.archived+' picks archived','ok'); }
+    catch(e){ toast(esc(e.message),'bad'); } finally{ loading(false); }
+  });
+  try{
+    const audit = await api('adminGetAudit', S.token);
+    if (S.adm.view!=='settings') return;
+    $('#auditBox').innerHTML = `<table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody>${audit.map(a=>`<tr><td style="white-space:nowrap">${fmtDT(a[0])}</td><td>${esc(a[1])}</td><td><b>${esc(a[2])}</b></td><td style="font-size:12.5px">${esc(a[3])}</td></tr>`).join('') || '<tr><td colspan="4" class="muted" style="text-align:center">No admin actions yet</td></tr>'}</tbody></table>`;
+  }catch(e){ toast(esc(e.message),'bad'); }
+}
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+(async function boot(){
+  try{
+    const info = await api('appInfo');
+    $('#lgPharm').textContent = info.pharmacy; $('#lgAdmin').textContent = info.admin;
+    document.title = 'Overstock ' + info.pharmacy;
+  }catch(e){ $('#lgErr').textContent = e.message; }
+  const s = store.get('session');
+  if (s && s.token && s.v===3){
+    Object.assign(S, { token:s.token, user:s.user, role:s.role, cat:s.cat, name:s.name, task:s.task||null });
+    enterApp();
+  } else showLogin();
+})();
+
+</script>
+</body>
+</html>
